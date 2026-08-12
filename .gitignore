@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+.env
+downloads/
+scratch/
+cookies.json
+subscriptions.json
+.DS_Store

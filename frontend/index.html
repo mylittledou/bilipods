@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>BiliPods - B站视频转播客音频提取工具</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="background-decor">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <header class="header">
+    <div class="logo">
+      <span class="logo-icon">🎙️</span>
+      <span class="logo-text">Bili<span class="highlight">Pods</span></span>
+    </div>
+
+    <div class="auth-box" id="authBox">
+      <button class="btn btn-glass btn-sm" id="btnShowSubs">
+        <span class="icon">⭐</span> 我的订阅
+      </button>
+      <button class="btn btn-glass btn-sm hidden" id="btnShowFollowed">
+        <span class="icon">❤️</span> 关注的 UP 主
+      </button>
+      <div id="loggedOutView">
+        <button class="btn btn-secondary btn-sm" id="btnShowQr">
+          <span class="icon">📱</span> 扫码登录 B 站
+        </button>
+      </div>
+      <div id="loggedInView" class="hidden">
+        <img id="userAvatar" class="avatar-small" src="" alt="用户头像">
+        <span id="userName" class="user-name">B站用户</span>
+        <span id="vipBadge" class="vip-badge hidden">大会员</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero Search Section -->
+    <section class="hero-section">
+      <h1 class="title">B站视频 智能提取 <span class="gradient-text">播客音频</span></h1>
+      <p class="subtitle">一键生成符合 Apple Podcasts 标准的高音质音频与 RSS 订阅源，轻松同步至 Audiobookshelf</p>
+      
+      <div class="search-bar-glass">
+        <input type="text" id="upQueryInput" placeholder="输入 UP 主主页链接 (例如 https://space.bilibili.com/353840826) 或 MID" autocomplete="off">
+        <button id="btnSearchUp" class="btn btn-primary">
+          <span class="icon">🔍</span> 解析 UP 主视频
+        </button>
+      </div>
+    </section>
+
+    <!-- UP Info Card -->
+    <section id="upProfileCard" class="up-profile-card hidden">
+      <div class="up-info-main">
+        <img id="upAvatar" class="up-avatar" src="" alt="UP主头像">
+        <div class="up-details">
+          <div class="up-header">
+            <h2 id="upName" class="up-name">UP 主名称</h2>
+            <span id="upMid" class="up-mid">MID: -</span>
+          </div>
+          <p id="upSign" class="up-sign">个人简介...</p>
+          <div class="up-stats">
+            <span class="stat-tag"><span class="icon">📹</span> 总视频数: <strong id="upTotalVideos">0</strong></span>
+            <span class="stat-tag"><span class="icon">🎵</span> 符合筛选条件: <strong id="upFilteredVideos">0</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="up-actions" style="display: flex; gap: 10px; flex-direction: column;">
+        <button id="btnAddSub" class="btn btn-primary">
+          <span class="icon">⭐</span> 订阅该 UP 主自动更新
+        </button>
+        <button id="btnCopyRss" class="btn btn-glass">
+          <span class="icon">📡</span> 复制 Apple Podcasts RSS 链接
+        </button>
+      </div>
+    </section>
+
+    <!-- Filter Controls Bar -->
+    <section id="filterControls" class="filter-controls hidden">
+      <div class="filter-group">
+        <div class="filter-item">
+          <label for="durationMinInput"><span class="icon">⏱️</span> 时长大于 (分钟):</label>
+          <input type="number" id="durationMinInput" value="0" min="0" step="1">
+        </div>
+
+        <div class="filter-item filter-search">
+          <label for="keywordInput"><span class="icon">🔑</span> 关键字筛选:</label>
+          <input type="text" id="keywordInput" placeholder="输入视频标题关键字...">
+        </div>
+      </div>
+
+      <div class="selection-tools">
+        <button id="btnSelectAll" class="btn btn-text">全选</button>
+        <button id="btnUnselectAll" class="btn btn-text">取消全选</button>
+        <button id="btnInvertSelect" class="btn btn-text">反选</button>
+        <span id="selectedCountBadge" class="selected-badge">已选择 0 个视频</span>
+      </div>
+    </section>
+
+    <!-- Video Grid List -->
+    <section id="videoGridSection" class="video-grid-section hidden">
+      <div id="videoGrid" class="video-grid"></div>
+    </section>
+
+    <!-- Floating Action Download Bar -->
+    <div id="downloadBar" class="download-bar hidden">
+      <div class="download-summary">
+        <span>选中 <strong id="barSelectedCount">0</strong> 个视频，等待提取音质最高 AAC/M4A 音频</span>
+      </div>
+      <button id="btnConfirmDownload" class="btn btn-gradient btn-lg">
+        <span class="icon">⚡</span> 确认提取并下载音频
+      </button>
+    </div>
+
+    <!-- Download Progress Modal -->
+    <div id="progressModal" class="modal-backdrop hidden">
+      <div class="modal-content glass-panel">
+        <div class="modal-header">
+          <h3>🎙️ 音频提取与元数据嵌入进度</h3>
+          <button id="btnCloseProgress" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="progress-box">
+            <div class="progress-bar-bg">
+              <div id="downloadProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-status-text">
+              <span id="progressStatusMsg">准备开始任务...</span>
+              <span id="progressPercent">0%</span>
+            </div>
+          </div>
+          <div id="progressLogConsole" class="log-console"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Login Modal -->
+    <div id="qrModal" class="modal-backdrop hidden">
+      <div class="modal-content glass-panel modal-sm">
+        <div class="modal-header">
+          <h3>📱 扫码登录 B 站账号</h3>
+          <button id="btnCloseQr" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body qr-modal-body">
+          <p class="qr-tip">请使用 <strong>哔哩哔哩 Mobile App</strong> 扫描下方二维码完成登录，即可解锁高音质音频下载权限。</p>
+          <div class="qr-code-wrapper">
+            <img id="qrCodeImg" src="" alt="登录二维码">
+            <div id="qrOverlay" class="qr-overlay hidden">
+              <span id="qrOverlayMsg">二维码状态</span>
+              <button id="btnRefreshQr" class="btn btn-primary btn-sm">刷新二维码</button>
+            </div>
+          </div>
+          <div id="qrStatusText" class="qr-status-text">正在初始化二维码...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscriptions Modal -->
+    <div id="subModal" class="modal-backdrop hidden">
+      <div class="modal-content glass-panel">
+        <div class="modal-header">
+          <h3>⭐ 我的 UP 主自动更新订阅</h3>
+          <button id="btnCloseSubModal" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="color: var(--text-sub); font-size: 13px; margin-bottom: 16px;">系统每 15 分钟后台自动轮询以下 UP 主新上传的视频，并自动筛选提取高音质音频。</p>
+          <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+            <button id="btnCheckAllSubsNow" class="btn btn-secondary btn-sm">⚡ 立即手动全量检查更新</button>
+          </div>
+          <div id="subListContainer" class="sub-list-container">
+            <div style="text-align: center; color: var(--text-muted); padding: 30px;">暂无订阅的 UP 主</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Followings Modal -->
+    <div id="followingsModal" class="modal-backdrop hidden">
+      <div class="modal-content glass-panel">
+        <div class="modal-header">
+          <h3>❤️ 我关注的 UP 主</h3>
+          <button id="btnCloseFollowings" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="followingsListContainer" class="sub-list-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+            <div style="text-align: center; color: var(--text-muted); padding: 30px; grid-column: 1/-1;">正在加载关注列表...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscription Config Modal -->
+    <div id="subConfigModal" class="modal-backdrop hidden">
+      <div class="modal-content glass-panel modal-sm">
+        <div class="modal-header">
+          <h3>⭐ 配置自动订阅</h3>
+          <button id="btnCloseSubConfig" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-bottom: 15px; font-size: 14px; color: var(--text-sub);">
+            为 UP 主 <strong id="subConfigUpName" style="color: var(--text-primary);"></strong> 设置自动订阅筛选条件：
+          </p>
+          <div class="filter-group" style="flex-direction: column; align-items: stretch; gap: 15px;">
+            <div class="filter-item" style="width: 100%;">
+              <label for="subDurationMinInput"><span class="icon">⏱️</span> 最小时长 (分钟):</label>
+              <input type="number" id="subDurationMinInput" value="0" min="0" step="1" style="width: 100%;">
+            </div>
+            <div class="filter-item filter-search" style="width: 100%;">
+              <label for="subKeywordInput"><span class="icon">🔑</span> 包含关键字 (留空则不限制):</label>
+              <input type="text" id="subKeywordInput" placeholder="多关键字可用空格隔开..." style="width: 100%;">
+            </div>
+          </div>
+          <div style="margin-top: 25px; text-align: right;">
+            <button id="btnConfirmSub" class="btn btn-primary" style="width: 100%;">确定订阅</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <p>BiliPods &copy; 2026 - 符合 Apple Podcasts 独立格式标准（专辑封面/单集封面 1400-3000px, 300KB-500KB 优化）</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
