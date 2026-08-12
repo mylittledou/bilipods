@@ -379,8 +379,12 @@ async function handleAddSubscription() {
   const upName = document.getElementById('upName').textContent;
   
   document.getElementById('subConfigUpName').textContent = upName;
+  document.getElementById('subConfigUpName').textContent = upName;
   document.getElementById('subDurationMinInput').value = document.getElementById('durationMinInput').value || 0;
   document.getElementById('subKeywordInput').value = document.getElementById('keywordInput').value || '';
+  
+  const historyInput = document.getElementById('subHistoryCountInput');
+  if(historyInput) historyInput.value = 0;
   
   document.getElementById('subConfigModal').classList.remove('hidden');
 }
@@ -410,7 +414,35 @@ async function confirmAddSubscription() {
       })
     });
     if (!res.ok) throw new Error("保存订阅失败");
-    alert(`已成功添加【${upName}】的自动更新订阅！\n系统将每 15 分钟后台轮询新上传的非付费视频（时长 > ${minDuration} 分钟${keywords.length ? '，匹配关键字: ' + keywords.join('/') : ''}）。`);
+    
+    const historyCount = parseInt(document.getElementById('subHistoryCountInput').value) || 0;
+    let historyMsg = "";
+    if (historyCount > 0 && currentRawVideos && currentRawVideos.length > 0) {
+      let matched = currentRawVideos.filter(v => {
+        if (v.is_paid) return false;
+        if (v.duration_seconds < minDuration * 60) return false;
+        if (keywords.length > 0) {
+          const text = (v.title + " " + (v.description || "")).toLowerCase();
+          if (!keywords.some(k => text.includes(k.toLowerCase()))) return false;
+        }
+        return true;
+      });
+      const toDownload = matched.slice(0, historyCount).map(v => v.bvid);
+      if (toDownload.length > 0) {
+        const dlRes = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mid: currentMid, bvid_list: toDownload })
+        });
+        if (dlRes.ok) {
+          historyMsg = `\n\n✅ 附加任务：已自动为您挑选最新的 ${toDownload.length} 个历史音频并加入下载队列！`;
+        }
+      } else {
+        historyMsg = `\n\n⚠️ 附加任务：未在历史视频中找到符合条件的音频。`;
+      }
+    }
+
+    alert(`已成功添加【${upName}】的自动更新订阅！\n系统将每 15 分钟后台轮询新上传的非付费视频（时长 > ${minDuration} 分钟${keywords.length ? '，匹配关键字: ' + keywords.join('/') : ''}）。${historyMsg}`);
     document.getElementById('subConfigModal').classList.add('hidden');
   } catch (err) {
     alert("添加订阅失败: " + err.message);
