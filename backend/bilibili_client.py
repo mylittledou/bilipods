@@ -160,6 +160,35 @@ class BilibiliClient:
             return resp.get('data', {})
         raise Exception(resp.get('message', '获取关注列表失败'))
 
+    def get_all_followings(self, vmid: int) -> list:
+        all_list = []
+        pn = 1
+        import time
+        while True:
+            try:
+                url = f"https://api.bilibili.com/x/relation/followings?vmid={vmid}&pn={pn}&ps=50"
+                resp = self.session.get(url, timeout=5).json()
+                if resp.get('code') != 0:
+                    break
+                
+                data = resp.get('data', {})
+                items = data.get('list') or []
+                all_list.extend(items)
+                
+                if len(items) < 50:
+                    break
+                
+                total = data.get('total', 0)
+                if len(all_list) >= total:
+                    break
+                    
+                pn += 1
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"Error fetching page {pn}: {e}")
+                break
+        return all_list
+
     @staticmethod
     def parse_mid(input_str: str) -> Optional[int]:
         input_str = input_str.strip()

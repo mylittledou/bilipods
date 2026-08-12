@@ -108,7 +108,8 @@
 
     <!-- Video Grid List -->
     <section id="videoGridSection" class="video-grid-section hidden">
-      <div id="videoGrid" class="video-grid"></div>
+      <div id="videoGrid" class="video-grid" style="display: flex; flex-direction: column; gap: 15px;">
+      </div>
     </section>
 
     <!-- Floating Action Download Bar -->
@@ -190,8 +191,8 @@
           <button id="btnCloseFollowings" class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
-          <div id="followingsListContainer" class="sub-list-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
-            <div style="text-align: center; color: var(--text-muted); padding: 30px; grid-column: 1/-1;">正在加载关注列表...</div>
+          <div id="followingsListContainer" class="sub-list-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto;">
+            <div style="text-align: center; color: var(--text-muted); padding: 30px;">正在加载关注列表...</div>
           </div>
         </div>
       </div>

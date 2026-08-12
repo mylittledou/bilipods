@@ -395,7 +395,8 @@ body {
   transition: all 0.25s ease;
   position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: stretch;
 }
 
 .video-card:hover:not(.disabled) {
@@ -419,8 +420,8 @@ body {
 
 .cover-wrapper {
   position: relative;
-  width: 100%;
-  padding-top: 56.25%; /* 16:9 aspect ratio */
+  width: 200px;
+  flex-shrink: 0;
   overflow: hidden;
   background: #000;
 }

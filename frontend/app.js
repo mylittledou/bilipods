@@ -449,21 +449,36 @@ async function loadSubscriptions() {
       const lastCheck = s.last_check_time ? new Date(s.last_check_time * 1000).toLocaleString() : '未检查';
       const kwText = (s.keywords && s.keywords.length) ? s.keywords.join('/') : '无限制';
 
+      const baseUrl = window.location.origin;
+      const rssNative = `${baseUrl}/downloads/${encodeURIComponent(s.up_name)}/rss.xml`;
+      const rssAbs = `${baseUrl}/api/abs-proxy/rss?up_name=${encodeURIComponent(s.up_name)}&url=`;
+
       card.innerHTML = `
-        <div class="sub-card-info">
-          <img class="sub-avatar" src="${s.up_avatar || '/favicon.ico'}" alt="${s.up_name}" onerror="this.onerror=null;this.src='/api/proxy_img?url=${encodeURIComponent(s.up_avatar)}';">
-          <div>
-            <div class="sub-name">${s.up_name} <span style="font-size:11px; color: var(--text-muted); font-weight:normal;">(MID: ${s.mid})</span></div>
-            <div class="sub-meta">
+        <div class="sub-card-info" style="align-items: flex-start; gap: 15px;">
+          <img class="sub-avatar" style="width:60px; height:60px;" src="${s.up_avatar || '/favicon.ico'}" alt="${s.up_name}" onerror="this.onerror=null;this.src='/api/proxy_img?url=${encodeURIComponent(s.up_avatar)}';">
+          <div style="flex: 1;">
+            <div class="sub-name" style="font-size: 16px; margin-bottom: 5px;">${s.up_name} <span style="font-size:12px; color: var(--text-muted); font-weight:normal;">(MID: ${s.mid})</span></div>
+            <div class="sub-meta" style="margin-bottom: 8px;">
               <span>⏱️ > ${s.min_duration_minutes} 分钟</span>
               <span>🔑 关键字: ${kwText}</span>
-              <span>📁 已处理 ${s.downloaded_bvids ? s.downloaded_bvids.length : 0} 个</span>
+              <span style="color: var(--bili-blue);">📁 本地已转存音频: ${s.downloaded_bvids ? s.downloaded_bvids.length : 0} 个</span>
+            </div>
+            <div style="font-size: 12px; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="color:var(--text-sub);">原生 RSS 链接 (Apple Podcasts):</span>
+                <button class="btn btn-text btn-sm" style="padding: 2px 6px; font-size:11px;" onclick="navigator.clipboard.writeText('${rssNative}');alert('原生 RSS 链接已复制');">复制</button>
+              </div>
+              <div style="color:var(--text-muted); word-break: break-all;">${rssNative}</div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 5px;">
+                <span style="color:var(--text-sub);">ABS 修复代理 RSS (方案A):</span>
+                <button class="btn btn-text btn-sm" style="padding: 2px 6px; font-size:11px;" onclick="navigator.clipboard.writeText('${rssAbs}');alert('代理 RSS 前缀已复制，请在末尾加上 UrlEncode 后的 ABS 源链接');">复制前缀</button>
+              </div>
             </div>
           </div>
         </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          <button class="btn btn-glass btn-sm btn-check-single" data-mid="${s.mid}">⚡ 检查更新</button>
-          <button class="btn btn-secondary btn-sm btn-del-sub" data-mid="${s.mid}" style="color: #EF4444; border-color: rgba(239,68,68,0.4);">取消订阅</button>
+        <div style="display: flex; flex-direction: column; gap: 8px; justify-content: center; min-width: 100px;">
+          <button class="btn btn-glass btn-sm btn-check-single" data-mid="${s.mid}">⚡ 手动检查</button>
+          <button class="btn btn-secondary btn-sm btn-del-sub" data-mid="${s.mid}" style="color: #EF4444; border-color: rgba(239,68,68,0.4);">删除与清理</button>
         </div>
       `;
 
@@ -509,12 +524,16 @@ async function checkAllSubsNow() {
 }
 
 async function removeSub(mid) {
-  if (!confirm("确定取消订阅该 UP 主的自动更新吗？")) return;
+  if (!confirm(`确定要彻底删除该订阅吗？\n\n警告：这将会同步删除服务器本地该 UP 主的整个文件夹（包含所有已下载的音频和封面）！此操作不可逆。`)) return;
+
   try {
-    await fetch('/api/subscriptions/' + mid, { method: 'DELETE' });
+    const res = await fetch(`/api/subscriptions/${mid}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error("取消订阅失败");
+    const data = await res.json();
+    alert(data.message || "删除成功");
     loadSubscriptions();
   } catch (err) {
-    alert("取消订阅失败: " + err.message);
+    alert("删除失败: " + err.message);
   }
 }
 
@@ -522,10 +541,10 @@ async function removeSub(mid) {
 async function showFollowingsModal() {
   document.getElementById('followingsModal').classList.remove('hidden');
   const container = document.getElementById('followingsListContainer');
-  container.innerHTML = '<div style="text-align: center; color: var(--text-sub); padding: 20px; grid-column: 1/-1;">正在拉取关注列表...</div>';
+  container.innerHTML = '<div style="text-align: center; color: var(--text-sub); padding: 30px;">正在深度拉取您账号下全量的关注列表，请耐心等待（如果您关注了非常多 UP 主，这可能需要几秒钟）...<br><br><div style="font-size:24px; animation: spin 1s linear infinite;">⏳</div></div>';
 
   try {
-    const res = await fetch('/api/up/followings?page=1');
+    const res = await fetch('/api/up/followings');
     if (!res.ok) {
       if (res.status === 401) throw new Error("请先扫码登录");
       throw new Error("获取关注列表失败");
