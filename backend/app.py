@@ -230,7 +230,7 @@ def get_rss(mid_or_name: str, request: Request):
     )
     return Response(content=rss_xml, media_type="application/xml")
 
-@app.get("/api/artwork/{up_name}/{filename}/cover.jpg")
+@app.api_route("/api/artwork/{up_name}/{filename}/cover.jpg", methods=["GET", "HEAD"])
 def get_embedded_artwork(up_name: str, filename: str):
     filepath = os.path.join(DOWNLOAD_DIR, up_name, filename)
     if not os.path.exists(filepath):
@@ -240,7 +240,8 @@ def get_embedded_artwork(up_name: str, filename: str):
         covers = m4a.get("covr")
         if covers:
             art_data = bytes(covers[0])
-            return Response(content=art_data, media_type="image/jpeg")
+            content_type = "image/png" if art_data.startswith(b'\x89PNG') else "image/jpeg"
+            return Response(content=art_data, media_type=content_type)
     except Exception as e:
         print(f"Error extracting artwork from {filepath}: {e}")
     # Fallback to show cover
