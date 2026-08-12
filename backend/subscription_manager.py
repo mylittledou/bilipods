@@ -35,7 +35,8 @@ class SubscriptionManager:
         up_avatar: str,
         min_duration_minutes: float = 0,
         keywords: Optional[List[str]] = None,
-        auto_download: bool = True
+        auto_download: bool = True,
+        ignore_bvids: Optional[List[str]] = None
     ) -> dict:
         key = str(mid)
         existing = self.subscriptions.get(key, {})
@@ -46,8 +47,12 @@ class SubscriptionManager:
         if os.path.exists(up_dir):
             for fname in os.listdir(up_dir):
                 if fname.endswith(".m4a") and not fname.startswith("_temp_"):
-                    # We can store downloaded files
                     pass
+                    
+        if ignore_bvids:
+            for b in ignore_bvids:
+                if b not in downloaded_bvids:
+                    downloaded_bvids.append(b)
 
         sub = {
             "mid": mid,
@@ -63,6 +68,27 @@ class SubscriptionManager:
         self.save()
         return sub
 
+    def update_subscription(
+        self,
+        mid: int,
+        min_duration_minutes: Optional[float] = None,
+        keywords: Optional[List[str]] = None
+    ) -> Optional[dict]:
+        key = str(mid)
+        if key not in self.subscriptions:
+            return None
+            
+        sub = self.subscriptions[key]
+        if min_duration_minutes is not None:
+            sub["min_duration_minutes"] = float(min_duration_minutes)
+        if keywords is not None:
+            sub["keywords"] = keywords
+            
+        self.subscriptions[key] = sub
+        self.save()
+        return sub
+
+
     def remove_subscription(self, mid: int) -> bool:
         key = str(mid)
         if key in self.subscriptions:
@@ -75,7 +101,14 @@ class SubscriptionManager:
         return self.subscriptions.get(str(mid))
 
     def list_subscriptions(self) -> List[dict]:
-        return list(self.subscriptions.values())
+        subs = list(self.subscriptions.values())
+        for sub in subs:
+            up_dir = os.path.join(self.download_dir, sanitize_filename(sub.get("up_name", "")))
+            actual_count = 0
+            if os.path.exists(up_dir):
+                actual_count = len([f for f in os.listdir(up_dir) if f.endswith(".m4a") and not f.startswith("_temp_")])
+            sub["downloaded_count"] = actual_count
+        return subs
 
     def check_up_updates(self, mid: int, client: BilibiliClient) -> dict:
         key = str(mid)

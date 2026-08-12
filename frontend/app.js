@@ -40,33 +40,41 @@ function setupEventListeners() {
     if (e.key === 'Enter') handleUpSearch();
   });
 
-  document.getElementById('durationMinInput').addEventListener('input', applyFiltersAndRender);
-  document.getElementById('keywordInput').addEventListener('input', applyFiltersAndRender);
+  document.getElementById('subDurationMinInput').addEventListener('input', applyFiltersAndRender);
+  document.getElementById('subKeywordInput').addEventListener('input', applyFiltersAndRender);
 
-  document.getElementById('btnSelectAll').addEventListener('click', selectAll);
-  document.getElementById('btnUnselectAll').addEventListener('click', unselectAll);
-  document.getElementById('btnInvertSelect').addEventListener('click', invertSelect);
-
-  document.getElementById('btnCopyRss').addEventListener('click', copyRssUrl);
-  document.getElementById('btnAddSub').addEventListener('click', handleAddSubscription);
   document.getElementById('btnShowSubs').addEventListener('click', showSubModal);
   document.getElementById('btnCloseSubModal').addEventListener('click', closeSubModal);
   document.getElementById('btnCheckAllSubsNow').addEventListener('click', checkAllSubsNow);
+  
+  // Sub Detail & Local Files Modal listeners
+  document.getElementById('btnCloseSubDetail').addEventListener('click', () => {
+    document.getElementById('subDetailModal').classList.add('hidden');
+    document.getElementById('subModal').classList.remove('hidden'); // Show subModal again
+  });
+  
+  document.getElementById('btnLocalFilesSelectAll').addEventListener('click', () => {
+    document.querySelectorAll('.local-file-checkbox').forEach(cb => cb.checked = true);
+    updateLocalFilesSelectedCount();
+  });
+  
+  document.getElementById('btnLocalFilesUnselectAll').addEventListener('click', () => {
+    document.querySelectorAll('.local-file-checkbox').forEach(cb => cb.checked = false);
+    updateLocalFilesSelectedCount();
+  });
+  
+  document.getElementById('btnDeleteSelectedFiles').addEventListener('click', deleteSelectedFiles);
 
   document.getElementById('btnShowFollowed').addEventListener('click', showFollowingsModal);
   document.getElementById('btnCloseFollowings').addEventListener('click', () => {
     document.getElementById('followingsModal').classList.add('hidden');
   });
 
-  document.getElementById('btnCloseSubConfig').addEventListener('click', () => {
-    document.getElementById('subConfigModal').classList.add('hidden');
+  document.getElementById('btnCloseUnifiedSub').addEventListener('click', () => {
+    document.getElementById('unifiedSubModal').classList.add('hidden');
   });
-  document.getElementById('btnConfirmSub').addEventListener('click', confirmAddSubscription);
 
-  document.getElementById('btnConfirmDownload').addEventListener('click', startDownload);
-  document.getElementById('btnCloseProgress').addEventListener('click', () => {
-    document.getElementById('progressModal').classList.add('hidden');
-  });
+  document.getElementById('btnConfirmSub').addEventListener('click', confirmAddSubscription);
 }
 
 // QR Login Flow
@@ -135,7 +143,6 @@ async function performUpSearch(query) {
 
     currentMid = data.up_info.mid;
     currentRawVideos = data.videos;
-    selectedBvids.clear();
 
     // Render UP Profile
     const avatarUrl = data.up_info.face ? (data.up_info.face.startsWith('http://') ? 'https://' + data.up_info.face.substring(7) : data.up_info.face) : '';
@@ -148,12 +155,15 @@ async function performUpSearch(query) {
     document.getElementById('upSign').textContent = data.up_info.sign || "无个人简介";
     document.getElementById('upTotalVideos').textContent = data.total;
 
-    document.getElementById('upProfileCard').classList.remove('hidden');
-    document.getElementById('filterControls').classList.remove('hidden');
-    document.getElementById('videoGridSection').classList.remove('hidden');
-
-    applyFiltersAndRender();
+    // Open Unified Modal
+    document.getElementById('subDurationMinInput').value = 0;
+    document.getElementById('subKeywordInput').value = '';
+    document.getElementById('subHistoryCountInput').value = 0;
+    
+    document.getElementById('unifiedSubModal').classList.remove('hidden');
     document.getElementById('followingsModal').classList.add('hidden');
+    
+    applyFiltersAndRender();
   } catch (err) {
     alert("解析 UP 主失败: " + err.message);
   } finally {
@@ -171,11 +181,11 @@ async function handleUpSearch() {
   await performUpSearch(query);
 }
 
-// 3. Filtering & Rendering
+// 3. Filtering & Rendering (Preview in Modal)
 function applyFiltersAndRender() {
-  const minDurationMinutes = parseFloat(document.getElementById('durationMinInput').value) || 0;
+  const minDurationMinutes = parseFloat(document.getElementById('subDurationMinInput').value) || 0;
   const minSeconds = minDurationMinutes * 60;
-  const keyword = document.getElementById('keywordInput').value.trim().toLowerCase();
+  const keyword = document.getElementById('subKeywordInput').value.trim().toLowerCase();
 
   filteredVideos = currentRawVideos.filter(v => {
     const passDuration = v.duration_seconds >= minSeconds;
@@ -183,9 +193,8 @@ function applyFiltersAndRender() {
     return passDuration && passKeyword;
   });
 
-  document.getElementById('upFilteredVideos').textContent = filteredVideos.length;
+  document.getElementById('filteredCount').textContent = filteredVideos.length;
   renderVideoGrid();
-  updateSelectedSummary();
 }
 
 function renderVideoGrid() {
@@ -193,7 +202,7 @@ function renderVideoGrid() {
   grid.innerHTML = '';
 
   if (filteredVideos.length === 0) {
-    grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">未找到符合条件的视频</div>`;
+    grid.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px;">未找到符合条件的视频</div>`;
     return;
   }
 
@@ -202,7 +211,6 @@ function renderVideoGrid() {
     const isPaid = v.is_paid || v.disabled;
     card.className = `video-card ${isPaid ? 'disabled' : ''}`;
 
-    const isChecked = selectedBvids.has(v.bvid);
     const dateStr = v.created ? new Date(v.created * 1000).toLocaleDateString() : '';
 
     let picUrl = v.pic || '';
@@ -219,175 +227,15 @@ function renderVideoGrid() {
       </div>
       <div class="card-content">
         <div class="video-title" title="${v.title}">${v.title}</div>
-        <div class="card-footer">
+        <div class="card-footer" style="justify-content: flex-start; color: var(--text-sub);">
           <span class="video-date">${dateStr}</span>
-          <input type="checkbox" class="card-checkbox" data-bvid="${v.bvid}" ${isChecked ? 'checked' : ''} ${isPaid ? 'disabled' : ''}>
         </div>
       </div>
     `;
-
-    // Click card to toggle checkbox (if not paid)
-    if (!isPaid) {
-      card.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'INPUT') {
-          const cb = card.querySelector('.card-checkbox');
-          cb.checked = !cb.checked;
-          toggleSelect(v.bvid, cb.checked);
-        }
-      });
-
-      const cb = card.querySelector('.card-checkbox');
-      cb.addEventListener('change', (e) => {
-        toggleSelect(v.bvid, e.target.checked);
-      });
-    }
-
     grid.appendChild(card);
   });
 }
 
-function toggleSelect(bvid, selected) {
-  if (selected) {
-    selectedBvids.add(bvid);
-  } else {
-    selectedBvids.delete(bvid);
-  }
-  updateSelectedSummary();
-}
-
-function selectAll() {
-  filteredVideos.forEach(v => {
-    if (!v.is_paid && !v.disabled) {
-      selectedBvids.add(v.bvid);
-    }
-  });
-  renderVideoGrid();
-  updateSelectedSummary();
-}
-
-function unselectAll() {
-  selectedBvids.clear();
-  renderVideoGrid();
-  updateSelectedSummary();
-}
-
-function invertSelect() {
-  filteredVideos.forEach(v => {
-    if (!v.is_paid && !v.disabled) {
-      if (selectedBvids.has(v.bvid)) {
-        selectedBvids.delete(v.bvid);
-      } else {
-        selectedBvids.add(v.bvid);
-      }
-    }
-  });
-  renderVideoGrid();
-  updateSelectedSummary();
-}
-
-function updateSelectedSummary() {
-  const count = selectedBvids.size;
-  document.getElementById('selectedCountBadge').textContent = `已选择 ${count} 个视频`;
-  document.getElementById('barSelectedCount').textContent = count;
-
-  if (count > 0) {
-    document.getElementById('downloadBar').classList.remove('hidden');
-  } else {
-    document.getElementById('downloadBar').classList.add('hidden');
-  }
-}
-
-// 4. Download & Progress Modal
-async function startDownload() {
-  if (selectedBvids.size === 0) {
-    alert("请至少选择一个可下载的视频");
-    return;
-  }
-
-  const bvidList = Array.from(selectedBvids);
-  document.getElementById('progressModal').classList.remove('hidden');
-  document.getElementById('downloadProgressBar').style.width = '0%';
-  document.getElementById('progressPercent').textContent = '0%';
-  document.getElementById('progressStatusMsg').textContent = '初始化提取任务...';
-
-  const logConsole = document.getElementById('progressLogConsole');
-  logConsole.innerHTML = '<div>> 准备启动后台音频提取任务...</div>';
-
-  try {
-    const res = await fetch('/api/download', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mid: currentMid, bvid_list: bvidList })
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "启动失败");
-    }
-
-    // Connect SSE for progress updates
-    const eventSource = new EventSource('/api/download/progress');
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      appendLog(data.message);
-
-      if (data.type === 'item_progress') {
-        const pct = data.percent;
-        document.getElementById('downloadProgressBar').style.width = `${pct}%`;
-        document.getElementById('progressPercent').textContent = `${pct}%`;
-        document.getElementById('progressStatusMsg').textContent = data.message;
-      } else if (data.type === 'finish') {
-        eventSource.close();
-        document.getElementById('downloadProgressBar').style.width = '100%';
-        document.getElementById('progressPercent').textContent = '100%';
-        document.getElementById('progressStatusMsg').textContent = "音频处理完成！";
-        appendLog("✨ 提示：可以在 Audiobookshelf 引入下载目录或复制 RSS Feed 在 Apple Podcasts 格式订阅！");
-      }
-    };
-
-    eventSource.onerror = (err) => {
-      console.error("SSE Error:", err);
-      eventSource.close();
-    };
-
-  } catch (err) {
-    appendLog(`❌ 错误: ${err.message}`);
-  }
-}
-
-function appendLog(msg) {
-  const logConsole = document.getElementById('progressLogConsole');
-  const div = document.createElement('div');
-  div.textContent = `> ${msg}`;
-  logConsole.appendChild(div);
-  logConsole.scrollTop = logConsole.scrollHeight;
-}
-
-function copyRssUrl() {
-  if (!currentMid) return;
-  const rssUrl = `${window.location.origin}/rss/${currentMid}`;
-  navigator.clipboard.writeText(rssUrl).then(() => {
-    alert(`RSS 链接已复制到剪贴板:\n${rssUrl}\n\n可在 Apple Podcasts 或 Audiobookshelf 中作为 RSS 源添加！`);
-  }).catch(() => {
-    prompt("请手动复制 RSS 链接:", rssUrl);
-  });
-}
-
-// 5. Subscriptions Management
-async function handleAddSubscription() {
-  if (!currentMid) return;
-  const upName = document.getElementById('upName').textContent;
-  
-  document.getElementById('subConfigUpName').textContent = upName;
-  document.getElementById('subConfigUpName').textContent = upName;
-  document.getElementById('subDurationMinInput').value = document.getElementById('durationMinInput').value || 0;
-  document.getElementById('subKeywordInput').value = document.getElementById('keywordInput').value || '';
-  
-  const historyInput = document.getElementById('subHistoryCountInput');
-  if(historyInput) historyInput.value = 0;
-  
-  document.getElementById('subConfigModal').classList.remove('hidden');
-}
 
 async function confirmAddSubscription() {
   if (!currentMid) return;
@@ -401,6 +249,21 @@ async function confirmAddSubscription() {
   document.getElementById('btnConfirmSub').textContent = "提交中...";
 
   try {
+    let historyCount = parseInt(document.getElementById('subHistoryCountInput').value) || 0;
+    let matched = currentRawVideos.filter(v => {
+      if (v.is_paid) return false;
+      if (v.duration_seconds < minDuration * 60) return false;
+      if (keywords.length > 0) {
+        const text = (v.title + " " + (v.description || "")).toLowerCase();
+        if (!keywords.some(k => text.includes(k.toLowerCase()))) return false;
+      }
+      return true;
+    });
+    
+    const toDownload = matched.slice(0, historyCount).map(v => v.bvid);
+    // Ignore all other videos that were fetched so they don't get downloaded in the background check later!
+    const toIgnore = currentRawVideos.map(v => v.bvid).filter(bvid => !toDownload.includes(bvid));
+
     const res = await fetch('/api/subscriptions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -410,40 +273,28 @@ async function confirmAddSubscription() {
         up_avatar: upAvatar,
         min_duration_minutes: minDuration,
         keywords: keywords,
-        auto_download: true
+        auto_download: true,
+        ignore_bvids: toIgnore
       })
     });
     if (!res.ok) throw new Error("保存订阅失败");
     
-    const historyCount = parseInt(document.getElementById('subHistoryCountInput').value) || 0;
     let historyMsg = "";
-    if (historyCount > 0 && currentRawVideos && currentRawVideos.length > 0) {
-      let matched = currentRawVideos.filter(v => {
-        if (v.is_paid) return false;
-        if (v.duration_seconds < minDuration * 60) return false;
-        if (keywords.length > 0) {
-          const text = (v.title + " " + (v.description || "")).toLowerCase();
-          if (!keywords.some(k => text.includes(k.toLowerCase()))) return false;
-        }
-        return true;
+    if (historyCount > 0 && toDownload.length > 0) {
+      const dlRes = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mid: currentMid, bvid_list: toDownload })
       });
-      const toDownload = matched.slice(0, historyCount).map(v => v.bvid);
-      if (toDownload.length > 0) {
-        const dlRes = await fetch('/api/download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mid: currentMid, bvid_list: toDownload })
-        });
-        if (dlRes.ok) {
-          historyMsg = `\n\n✅ 附加任务：已自动为您挑选最新的 ${toDownload.length} 个历史音频并加入下载队列！`;
-        }
+      if (dlRes.ok) {
+        historyMsg = `\n\n✅ 附加任务：已自动为您挑选最新的 ${toDownload.length} 个历史音频并加入下载队列！`;
       } else {
         historyMsg = `\n\n⚠️ 附加任务：未在历史视频中找到符合条件的音频。`;
       }
     }
 
     alert(`已成功添加【${upName}】的自动更新订阅！\n系统将每 15 分钟后台轮询新上传的非付费视频（时长 > ${minDuration} 分钟${keywords.length ? '，匹配关键字: ' + keywords.join('/') : ''}）。${historyMsg}`);
-    document.getElementById('subConfigModal').classList.add('hidden');
+    document.getElementById('unifiedSubModal').classList.add('hidden');
   } catch (err) {
     alert("添加订阅失败: " + err.message);
   } finally {
@@ -474,53 +325,49 @@ async function loadSubscriptions() {
       return;
     }
 
+    let globalSubsData = subs; // store for openSubDetailModal
+
     container.innerHTML = '';
     subs.forEach(s => {
       const card = document.createElement('div');
       card.className = 'sub-card';
-      const lastCheck = s.last_check_time ? new Date(s.last_check_time * 1000).toLocaleString() : '未检查';
-      const kwText = (s.keywords && s.keywords.length) ? s.keywords.join('/') : '无限制';
-
-      const baseUrl = window.location.origin;
-      const rssNative = `${baseUrl}/downloads/${encodeURIComponent(s.up_name)}/rss.xml`;
-      const rssAbs = `${baseUrl}/api/abs-proxy/rss?up_name=${encodeURIComponent(s.up_name)}&url=`;
-
+      card.style.cursor = 'pointer';
+      card.style.display = 'flex';
+      card.style.alignItems = 'center';
+      card.style.gap = '15px';
+      
       card.innerHTML = `
-        <div class="sub-card-info" style="align-items: flex-start; gap: 15px;">
-          <img class="sub-avatar" style="width:60px; height:60px;" src="${s.up_avatar || '/favicon.ico'}" alt="${s.up_name}" onerror="this.onerror=null;this.src='/api/proxy_img?url=${encodeURIComponent(s.up_avatar)}';">
-          <div style="flex: 1;">
-            <div class="sub-name" style="font-size: 16px; margin-bottom: 5px;">${s.up_name} <span style="font-size:12px; color: var(--text-muted); font-weight:normal;">(MID: ${s.mid})</span></div>
-            <div class="sub-meta" style="margin-bottom: 8px;">
-              <span>⏱️ > ${s.min_duration_minutes} 分钟</span>
-              <span>🔑 关键字: ${kwText}</span>
-              <span style="color: var(--bili-blue);">📁 本地已转存音频: ${s.downloaded_bvids ? s.downloaded_bvids.length : 0} 个</span>
-            </div>
-            <div style="font-size: 12px; display: flex; flex-direction: column; gap: 4px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="color:var(--text-sub);">原生 RSS 链接 (Apple Podcasts):</span>
-                <button class="btn btn-text btn-sm" style="padding: 2px 6px; font-size:11px;" onclick="navigator.clipboard.writeText('${rssNative}');alert('原生 RSS 链接已复制');">复制</button>
-              </div>
-              <div style="color:var(--text-muted); word-break: break-all;">${rssNative}</div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 5px;">
-                <span style="color:var(--text-sub);">ABS 修复代理 RSS (方案A):</span>
-                <button class="btn btn-text btn-sm" style="padding: 2px 6px; font-size:11px;" onclick="navigator.clipboard.writeText('${rssAbs}');alert('代理 RSS 前缀已复制，请在末尾加上 UrlEncode 后的 ABS 源链接');">复制前缀</button>
-              </div>
-            </div>
-          </div>
+        <img class="sub-avatar" style="width:50px; height:50px; border-radius:50%; object-fit:cover;" src="${s.up_avatar || '/favicon.ico'}" alt="${s.up_name}" onerror="this.onerror=null;this.src='/api/proxy_img?url=${encodeURIComponent(s.up_avatar)}';">
+        <div style="flex: 1;">
+          <div class="sub-name" style="font-size: 16px; font-weight:bold;">${s.up_name}</div>
         </div>
-        <div style="display: flex; flex-direction: column; gap: 8px; justify-content: center; min-width: 100px;">
-          <button class="btn btn-glass btn-sm btn-check-single" data-mid="${s.mid}">⚡ 手动检查</button>
-          <button class="btn btn-secondary btn-sm btn-del-sub" data-mid="${s.mid}" style="color: #EF4444; border-color: rgba(239,68,68,0.4);">删除与清理</button>
+        <div style="display:flex; align-items:center; gap: 8px;">
+          <span style="background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 20px; font-size: 12px; color: var(--bili-blue);">已转存: ${s.downloaded_count || 0} 首 ↗</span>
+          <button class="btn btn-secondary btn-sm btn-quick-remove" style="border-radius:50%; width:28px; height:28px; padding:0; display:flex; justify-content:center; align-items:center; color:#EF4444; border:none; background:rgba(239,68,68,0.1);" title="取消订阅并清理">❌</button>
         </div>
       `;
-
-      card.querySelector('.btn-check-single').addEventListener('click', () => checkSingleSub(s.mid));
-      card.querySelector('.btn-del-sub').addEventListener('click', () => removeSub(s.mid));
+      
+      card.querySelector('.btn-quick-remove').addEventListener('click', (e) => {
+        e.stopPropagation();
+        quickRemoveSub(s.mid);
+      });
+      card.addEventListener('click', () => openSubDetailModal(s));
       container.appendChild(card);
     });
 
   } catch (err) {
     container.innerHTML = `<div style="color: #EF4444; text-align: center;">加载订阅列表失败: ${err.message}</div>`;
+  }
+}
+
+async function quickRemoveSub(mid) {
+  if (!confirm(`确定要彻底取消订阅并清理全部文件吗？\n\n警告：这将会同步删除服务器本地该 UP 主的整个文件夹！此操作不可逆。`)) return;
+  try {
+    const res = await fetch(`/api/subscriptions/${mid}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error("删除失败");
+    loadSubscriptions(); // Refresh list immediately
+  } catch (err) {
+    alert("删除失败: " + err.message);
   }
 }
 
@@ -555,17 +402,201 @@ async function checkAllSubsNow() {
   }
 }
 
+// --- Sub Detail & Local Files Manager ---
+let currentLocalFilesMid = null;
+let currentLocalFilesUpName = null;
+
+async function openSubDetailModal(s) {
+  const mid = s.mid;
+  const upName = s.up_name;
+  
+  currentLocalFilesMid = mid;
+  currentLocalFilesUpName = upName;
+  
+  // Hide main subModal
+  document.getElementById('subModal').classList.add('hidden');
+  
+  // Show subDetailModal
+  const modal = document.getElementById('subDetailModal');
+  modal.classList.remove('hidden');
+  
+  // Basic Info
+  document.getElementById('subDetailAvatar').src = s.up_avatar || '/favicon.ico';
+  document.getElementById('subDetailAvatar').onerror = function() { this.onerror = null; this.src = '/api/proxy_img?url=' + encodeURIComponent(s.up_avatar); };
+  document.getElementById('subDetailName').textContent = upName;
+  document.getElementById('subDetailMid').textContent = `(MID: ${mid})`;
+  
+  // RSS Link
+  const baseUrl = window.location.origin;
+  const rssNative = `${baseUrl}/downloads/${encodeURIComponent(upName)}/rss.xml`;
+  document.getElementById('subDetailRss').textContent = rssNative;
+  document.getElementById('btnCopyRss').onclick = () => {
+    navigator.clipboard.writeText(rssNative);
+    alert('原生 RSS 链接已复制');
+  };
+  
+  // Rules Settings
+  document.getElementById('subDetailMinDuration').value = s.min_duration_minutes || 0;
+  document.getElementById('subDetailKeywords').value = (s.keywords && s.keywords.length) ? s.keywords.join(', ') : '';
+  
+  // Re-bind actions (remove old listeners by cloning or just assigning onclick to prevent duplicates)
+  document.getElementById('btnSaveSubRules').onclick = () => saveSubRules(mid);
+  document.getElementById('btnCheckSingleSubDetail').onclick = () => checkSingleSub(mid);
+  document.getElementById('btnDeleteSubDetail').onclick = () => {
+    removeSub(mid);
+  };
+  
+  document.getElementById('localFilesSelectedCount').textContent = `已选: 0`;
+  
+  await loadLocalFiles(mid);
+}
+
+async function saveSubRules(mid) {
+  const btn = document.getElementById('btnSaveSubRules');
+  const minDuration = parseFloat(document.getElementById('subDetailMinDuration').value) || 0;
+  const kwStr = document.getElementById('subDetailKeywords').value.trim();
+  const keywords = kwStr ? kwStr.split(/[,，\s]+/).filter(k => k) : [];
+  
+  btn.disabled = true;
+  btn.textContent = "保存中...";
+  
+  try {
+    const res = await fetch(`/api/subscriptions/${mid}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        min_duration_minutes: minDuration,
+        keywords: keywords
+      })
+    });
+    if (!res.ok) throw new Error("保存失败");
+    alert("规则已保存！下一次后台检查将应用新规则。");
+    // Background refresh subList so main view is updated when we go back
+    loadSubscriptions();
+  } catch (err) {
+    alert("保存失败: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "💾 保存规则";
+  }
+}
+
+async function loadLocalFiles(mid) {
+  const container = document.getElementById('localFilesListContainer');
+  container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">正在加载音频列表...</div>';
+  
+  try {
+    const res = await fetch(`/api/subscriptions/${mid}/files`);
+    if (!res.ok) throw new Error("获取文件列表失败");
+    const data = await res.json();
+    const files = data.files;
+    
+    if (!files || files.length === 0) {
+      container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 30px;">该 UP 主暂无已下载的本地音频。</div>';
+      return;
+    }
+    
+    container.innerHTML = '';
+    files.forEach(f => {
+      const item = document.createElement('label');
+      item.className = 'local-file-item';
+      item.style.display = 'flex';
+      item.style.alignItems = 'center';
+      item.style.gap = '10px';
+      item.style.padding = '10px';
+      item.style.background = 'rgba(255,255,255,0.02)';
+      item.style.borderRadius = 'var(--radius-sm)';
+      item.style.cursor = 'pointer';
+      
+      const dateStr = new Date(f.mtime * 1000).toLocaleString();
+      
+      item.innerHTML = `
+        <input type="checkbox" class="local-file-checkbox" value="${f.filename}" style="width: 18px; height: 18px; accent-color: var(--bili-pink);">
+        <div style="flex: 1; overflow: hidden;">
+          <div style="font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${f.filename}">${f.filename}</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+            <span style="display:inline-block; width: 80px;">${f.size_mb} MB</span>
+            <span>🕒 ${dateStr}</span>
+          </div>
+        </div>
+      `;
+      
+      item.querySelector('input').addEventListener('change', updateLocalFilesSelectedCount);
+      container.appendChild(item);
+    });
+  } catch (err) {
+    container.innerHTML = `<div style="text-align: center; color: #EF4444; padding: 30px;">加载失败: ${err.message}</div>`;
+  }
+}
+
+function updateLocalFilesSelectedCount() {
+  const count = document.querySelectorAll('.local-file-checkbox:checked').length;
+  document.getElementById('localFilesSelectedCount').textContent = `已选: ${count}`;
+}
+
+async function deleteSelectedFiles() {
+  const checkboxes = document.querySelectorAll('.local-file-checkbox:checked');
+  if (checkboxes.length === 0) {
+    alert("请先勾选需要删除的音频");
+    return;
+  }
+  
+  const filenames = Array.from(checkboxes).map(cb => cb.value);
+  if (!confirm(`确定要永久删除这 ${filenames.length} 个音频文件吗？\n（删除后不会再次被自动下载）`)) {
+    return;
+  }
+  
+  const btn = document.getElementById('btnDeleteSelectedFiles');
+  btn.disabled = true;
+  btn.textContent = "删除中...";
+  
+  try {
+    const res = await fetch(`/api/subscriptions/${currentLocalFilesMid}/files/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filenames })
+    });
+    
+    if (!res.ok) throw new Error("删除请求失败");
+    const data = await res.json();
+    
+    if (data.errors && data.errors.length > 0) {
+      alert(`部分文件删除失败:\n${data.errors.join('\n')}`);
+    } else {
+      alert(`成功删除了 ${data.deleted_count} 个音频！`);
+    }
+    
+    // Reload local files
+    await loadLocalFiles(currentLocalFilesMid);
+    // Also trigger background update of subscription count
+    loadSubscriptions(); 
+  } catch (err) {
+    alert("删除出错: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🗑️ 永久删除选中的音频";
+  }
+}
+
 async function removeSub(mid) {
-  if (!confirm(`确定要彻底删除该订阅吗？\n\n警告：这将会同步删除服务器本地该 UP 主的整个文件夹（包含所有已下载的音频和封面）！此操作不可逆。`)) return;
+  if (!confirm(`确定要彻底取消订阅并清理全部文件吗？\n\n警告：这将会同步删除服务器本地该 UP 主的整个文件夹（包含所有已下载的音频和封面）！此操作不可逆。`)) return;
+
+  const btn = document.getElementById('btnDeleteSubDetail');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "清理中...";
 
   try {
     const res = await fetch(`/api/subscriptions/${mid}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error("取消订阅失败");
-    const data = await res.json();
-    alert(data.message || "删除成功");
-    loadSubscriptions();
+    if (!res.ok) throw new Error("删除失败");
+    alert("已彻底删除该订阅及所有本地文件。");
+    document.getElementById('subDetailModal').classList.add('hidden');
+    showSubModal(); // Re-open list view
   } catch (err) {
     alert("删除失败: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
   }
 }
 

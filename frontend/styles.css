@@ -346,7 +346,8 @@ body {
 }
 
 .filter-item input[type="number"],
-.filter-item input[type="text"] {
+.filter-item input[type="text"],
+.input-field {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--card-border);
   border-radius: var(--radius-sm);
@@ -354,6 +355,10 @@ body {
   padding: 6px 12px;
   outline: none;
   font-size: 14px;
+}
+.input-field {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-item input[type="number"] {
@@ -397,6 +402,7 @@ body {
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  flex-shrink: 0;
 }
 
 .video-card:hover:not(.disabled) {
@@ -421,6 +427,7 @@ body {
 .cover-wrapper {
   position: relative;
   width: 200px;
+  height: 112px;
   flex-shrink: 0;
   overflow: hidden;
   background: #000;

@@ -93,16 +93,7 @@ def process_audio_file(
     up_dir = os.path.join(base_download_dir, sanitized_up)
     os.makedirs(up_dir, exist_ok=True)
 
-    # 1. Ensure Show Cover (cover.jpg) exists in UP directory for Audiobookshelf
-    show_cover_path = os.path.join(up_dir, "cover.jpg")
-    if not os.path.exists(show_cover_path) and up_avatar_url:
-        try:
-            if progress_cb: progress_cb("正在生成专辑封面 (UP主头像)...", 0.1)
-            avatar_bytes = process_artwork(up_avatar_url, session, target_min=1400, target_max=2000)
-            with open(show_cover_path, "wb") as f:
-                f.write(avatar_bytes)
-        except Exception as e:
-            print(f"Error processing UP avatar: {e}")
+    # No longer saving a standalone cover.jpg (UP Avatar) in the directory
 
     bvid = video_data['bvid']
     title = video_data['title']
@@ -162,10 +153,7 @@ def process_audio_file(
         if pic_url:
             try:
                 ep_art_bytes = process_artwork(pic_url, session, target_min=1400, target_max=2000)
-                # Generate a sidecar episode JPG for Audiobookshelf RSS <itunes:image> extraction
-                sidecar_jpg_path = os.path.join(up_dir, f"{sanitize_filename(title)}.jpg")
-                with open(sidecar_jpg_path, "wb") as f:
-                    f.write(ep_art_bytes)
+                # We keep the artwork bytes to embed into the M4A file metadata
             except Exception as e:
                 print(f"Error processing episode artwork: {e}")
 

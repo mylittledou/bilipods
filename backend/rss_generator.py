@@ -34,9 +34,9 @@ def generate_podcast_rss(
     ET.SubElement(owner, "itunes:name").text = up_name
     ET.SubElement(owner, "itunes:email").text = "bilipods@bilibili.com"
     
-    # Show Cover (Album Cover: cover.jpg in UP directory)
+    # Show Cover (Podcast Album Cover) uses the dynamic artwork API
     encoded_up_name = urllib.parse.quote(up_name)
-    show_cover_url = f"{server_base_url}/downloads/{encoded_up_name}/cover.jpg?v={int(time.time())}"
+    show_cover_url = f"{server_base_url}/api/artwork/{encoded_up_name}/cover.jpg?v={int(time.time())}"
     ET.SubElement(channel, "itunes:image", {"href": show_cover_url})
     
     category = ET.SubElement(channel, "itunes:category", {"text": "Leisure"})
