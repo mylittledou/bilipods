@@ -46,6 +46,11 @@ class SubscriptionRequest(BaseModel):
     min_duration_minutes: float = 0.0
     keywords: Optional[List[str]] = []
     auto_download: bool = True
+    ignore_bvids: Optional[List[str]] = []
+
+class SubscriptionUpdateRequest(BaseModel):
+    min_duration_minutes: Optional[float] = None
+    keywords: Optional[List[str]] = None
 
 async def background_subscription_checker():
     """Periodically check all subscribed UP hosts every 15 minutes"""
@@ -230,6 +235,32 @@ def get_rss(mid_or_name: str, request: Request):
     )
     return Response(content=rss_xml, media_type="application/xml")
 
+@app.api_route("/api/artwork/{up_name}/cover.jpg", methods=["GET", "HEAD"])
+def get_channel_artwork(up_name: str):
+    dir_path = os.path.join(DOWNLOAD_DIR, up_name)
+    if not os.path.exists(dir_path):
+        raise HTTPException(status_code=404, detail="目录不存在")
+        
+    m4a_files = [f for f in os.listdir(dir_path) if f.endswith(".m4a")]
+    if not m4a_files:
+        raise HTTPException(status_code=404, detail="未找到音频文件")
+        
+    m4a_files.sort(key=lambda x: os.path.getmtime(os.path.join(dir_path, x)), reverse=True)
+    
+    for filename in m4a_files:
+        filepath = os.path.join(dir_path, filename)
+        try:
+            m4a = MP4(filepath)
+            covers = m4a.get("covr")
+            if covers:
+                art_data = bytes(covers[0])
+                content_type = "image/png" if art_data.startswith(b'\x89PNG') else "image/jpeg"
+                return Response(content=art_data, media_type=content_type)
+        except Exception:
+            continue
+            
+    raise HTTPException(status_code=404, detail="未找到封面图片")
+
 @app.api_route("/api/artwork/{up_name}/{filename}/cover.jpg", methods=["GET", "HEAD"])
 def get_embedded_artwork(up_name: str, filename: str):
     filepath = os.path.join(DOWNLOAD_DIR, up_name, filename)
@@ -244,10 +275,6 @@ def get_embedded_artwork(up_name: str, filename: str):
             return Response(content=art_data, media_type=content_type)
     except Exception as e:
         print(f"Error extracting artwork from {filepath}: {e}")
-    # Fallback to show cover
-    cover_path = os.path.join(DOWNLOAD_DIR, up_name, "cover.jpg")
-    if os.path.exists(cover_path):
-        return FileResponse(cover_path, media_type="image/jpeg")
     raise HTTPException(status_code=404, detail="未找到封面图片")
 
 @app.get("/api/subscriptions")
@@ -262,8 +289,20 @@ def add_subscription(req: SubscriptionRequest):
         up_avatar=req.up_avatar or "",
         min_duration_minutes=req.min_duration_minutes,
         keywords=req.keywords,
-        auto_download=req.auto_download
+        auto_download=req.auto_download,
+        ignore_bvids=req.ignore_bvids
     )
+    return {"status": "ok", "subscription": sub}
+
+@app.post("/api/subscriptions/{mid}/update")
+def update_subscription(mid: int, req: SubscriptionUpdateRequest):
+    sub = subscription_mgr.update_subscription(
+        mid=mid,
+        min_duration_minutes=req.min_duration_minutes,
+        keywords=req.keywords
+    )
+    if not sub:
+        raise HTTPException(status_code=404, detail="订阅不存在")
     return {"status": "ok", "subscription": sub}
 
 @app.delete("/api/subscriptions/{mid}")
@@ -277,7 +316,7 @@ def delete_subscription(mid: int):
         
     import shutil
     if sub and "up_name" in sub:
-        up_dir = os.path.join(DOWNLOAD_DIR, sub["up_name"])
+        up_dir = os.path.join(DOWNLOAD_DIR, sanitize_filename(sub["up_name"]))
         if os.path.exists(up_dir):
             try:
                 shutil.rmtree(up_dir)
@@ -294,6 +333,61 @@ async def check_subscriptions_now(mid: Optional[int] = None):
     else:
         results = await asyncio.to_thread(subscription_mgr.check_all_subscriptions, bilibili_client)
         return {"status": "ok", "results": results}
+
+class DeleteFilesRequest(BaseModel):
+    filenames: List[str]
+
+@app.get("/api/subscriptions/{mid}/files")
+def get_subscription_files(mid: int):
+    sub = subscription_mgr.get_subscription(mid)
+    if not sub or not sub.get("up_name"):
+        raise HTTPException(status_code=404, detail="订阅不存在")
+    
+    up_dir = os.path.join(DOWNLOAD_DIR, sub["up_name"])
+    if not os.path.exists(up_dir):
+        return {"status": "ok", "files": []}
+        
+    files = []
+    for fname in os.listdir(up_dir):
+        if fname.endswith(".m4a") and not fname.startswith("_temp_"):
+            filepath = os.path.join(up_dir, fname)
+            stat = os.stat(filepath)
+            files.append({
+                "filename": fname,
+                "size_mb": round(stat.st_size / (1024 * 1024), 2),
+                "mtime": stat.st_mtime
+            })
+            
+    files.sort(key=lambda x: x["mtime"], reverse=True)
+    return {"status": "ok", "files": files}
+
+@app.post("/api/subscriptions/{mid}/files/delete")
+def delete_subscription_files(mid: int, req: DeleteFilesRequest):
+    sub = subscription_mgr.get_subscription(mid)
+    if not sub or not sub.get("up_name"):
+        raise HTTPException(status_code=404, detail="订阅不存在")
+        
+    up_dir = os.path.join(DOWNLOAD_DIR, sub["up_name"])
+    deleted_count = 0
+    errors = []
+    
+    for fname in req.filenames:
+        if not fname.endswith(".m4a") or ".." in fname or "/" in fname or "\\" in fname:
+            continue
+            
+        filepath = os.path.join(up_dir, fname)
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+                deleted_count += 1
+            except Exception as e:
+                errors.append(f"删除 {fname} 失败: {str(e)}")
+                
+    return {
+        "status": "ok", 
+        "deleted_count": deleted_count, 
+        "errors": errors
+    }
 
 @app.get("/api/proxy_img")
 def proxy_img(url: str):
@@ -325,47 +419,6 @@ def get_followings():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/abs-proxy/rss")
-def proxy_abs_rss(url: str, up_name: str, request: Request):
-    if not url or not up_name:
-        raise HTTPException(status_code=400, detail="url 和 up_name 是必填参数")
-    
-    try:
-        resp = requests.get(url, timeout=10)
-        resp.raise_for_status()
-        xml_content = resp.text
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"无法抓取 ABS RSS 源: {e}")
-        
-    try:
-        ET.register_namespace('itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd')
-        ET.register_namespace('content', 'http://purl.org/rss/1.0/modules/content/')
-        root = ET.fromstring(xml_content)
-        
-        server_base_url = str(request.base_url).rstrip('/')
-        encoded_up_name = urllib.parse.quote(up_name)
-        itunes_ns = '{http://www.itunes.com/dtds/podcast-1.0.dtd}'
-        
-        for item in root.findall('.//item'):
-            title_node = item.find('title')
-            if title_node is None or not title_node.text:
-                continue
-            
-            filename = f"{sanitize_filename(title_node.text)}.m4a"
-            encoded_filename = urllib.parse.quote(filename)
-            import time
-            ep_cover_url = f"{server_base_url}/api/artwork/{encoded_up_name}/{encoded_filename}/cover.jpg?v={int(time.time())}"
-            
-            existing_img = item.find(f'{itunes_ns}image')
-            if existing_img is not None:
-                existing_img.set('href', ep_cover_url)
-            else:
-                ET.SubElement(item, f'{itunes_ns}image', {'href': ep_cover_url})
-                
-        modified_xml = ET.tostring(root, encoding='utf-8', xml_declaration=True).decode('utf-8')
-        return Response(content=modified_xml, media_type="application/xml")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"修改 RSS XML 失败: {e}")
 
 # Mount downloads directory for static audio & cover serving
 app.mount("/downloads", StaticFiles(directory=DOWNLOAD_DIR), name="downloads")

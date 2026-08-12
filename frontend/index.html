@@ -57,69 +57,6 @@
       </div>
     </section>
 
-    <!-- UP Info Card -->
-    <section id="upProfileCard" class="up-profile-card hidden">
-      <div class="up-info-main">
-        <img id="upAvatar" class="up-avatar" src="" alt="UP主头像">
-        <div class="up-details">
-          <div class="up-header">
-            <h2 id="upName" class="up-name">UP 主名称</h2>
-            <span id="upMid" class="up-mid">MID: -</span>
-          </div>
-          <p id="upSign" class="up-sign">个人简介...</p>
-          <div class="up-stats">
-            <span class="stat-tag"><span class="icon">📹</span> 总视频数: <strong id="upTotalVideos">0</strong></span>
-            <span class="stat-tag"><span class="icon">🎵</span> 符合筛选条件: <strong id="upFilteredVideos">0</strong></span>
-          </div>
-        </div>
-      </div>
-
-      <div class="up-actions" style="display: flex; gap: 10px; flex-direction: column;">
-        <button id="btnAddSub" class="btn btn-primary">
-          <span class="icon">⭐</span> 订阅该 UP 主自动更新
-        </button>
-        <button id="btnCopyRss" class="btn btn-glass">
-          <span class="icon">📡</span> 复制 Apple Podcasts RSS 链接
-        </button>
-      </div>
-    </section>
-
-    <!-- Filter Controls Bar -->
-    <section id="filterControls" class="filter-controls hidden">
-      <div class="filter-group">
-        <div class="filter-item">
-          <label for="durationMinInput"><span class="icon">⏱️</span> 时长大于 (分钟):</label>
-          <input type="number" id="durationMinInput" value="0" min="0" step="1">
-        </div>
-
-        <div class="filter-item filter-search">
-          <label for="keywordInput"><span class="icon">🔑</span> 关键字筛选:</label>
-          <input type="text" id="keywordInput" placeholder="输入视频标题关键字...">
-        </div>
-      </div>
-
-      <div class="selection-tools">
-        <button id="btnSelectAll" class="btn btn-text">全选</button>
-        <button id="btnUnselectAll" class="btn btn-text">取消全选</button>
-        <button id="btnInvertSelect" class="btn btn-text">反选</button>
-        <span id="selectedCountBadge" class="selected-badge">已选择 0 个视频</span>
-      </div>
-    </section>
-
-    <!-- Video Grid List -->
-    <section id="videoGridSection" class="video-grid-section hidden">
-      <div id="videoGrid" class="video-grid" style="display: flex; flex-direction: column; gap: 15px;">
-      </div>
-    </section>
-
-    <!-- Floating Action Download Bar -->
-    <div id="downloadBar" class="download-bar hidden">
-      <div class="download-summary">
-        <span>选中 <strong id="barSelectedCount">0</strong> 个视频，等待提取音质最高 AAC/M4A 音频</span>
-      </div>
-      <button id="btnConfirmDownload" class="btn btn-gradient btn-lg">
-        <span class="icon">⚡</span> 确认提取并下载音频
-      </button>
     </div>
 
     <!-- Download Progress Modal -->
@@ -198,35 +135,135 @@
       </div>
     </div>
 
-    <!-- Subscription Config Modal -->
-    <div id="subConfigModal" class="modal-backdrop hidden">
-      <div class="modal-content glass-panel modal-sm">
-        <div class="modal-header">
-          <h3>⭐ 配置自动订阅</h3>
-          <button id="btnCloseSubConfig" class="modal-close">&times;</button>
+
+    <!-- Sub Detail & Local Files Manager Modal -->
+    <div id="subDetailModal" class="modal-backdrop hidden">
+      <div class="modal-content glass-panel" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="flex-shrink: 0;">
+          <h3 id="subDetailTitle">⚙️ 订阅设置与管理</h3>
+          <button id="btnCloseSubDetail" class="modal-close">&times;</button>
         </div>
-        <div class="modal-body">
-          <p style="margin-bottom: 15px; font-size: 14px; color: var(--text-sub);">
-            为 UP 主 <strong id="subConfigUpName" style="color: var(--text-primary);"></strong> 设置自动订阅筛选条件：
-          </p>
-          <div class="filter-group" style="flex-direction: column; align-items: stretch; gap: 15px;">
-            <div class="filter-item" style="width: 100%;">
+        <div class="modal-body" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px;">
+          
+          <!-- Basic Info & RSS -->
+          <div style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: var(--radius-md);">
+            <img id="subDetailAvatar" src="" alt="avatar" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--bili-pink);">
+            <div style="flex: 1;">
+              <div id="subDetailName" style="font-size: 18px; font-weight: bold; margin-bottom: 5px;"></div>
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;" id="subDetailMid"></div>
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size: 12px;">
+                <span style="color:var(--text-sub);">原生 RSS 链接 (Apple Podcasts):</span>
+                <button id="btnCopyRss" class="btn btn-text btn-sm" style="padding: 2px 6px; font-size:11px;">复制</button>
+              </div>
+              <div id="subDetailRss" style="font-size: 12px; color:var(--text-muted); word-break: break-all; margin-top: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;"></div>
+            </div>
+          </div>
+
+          <!-- Rules Settings -->
+          <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: var(--radius-md);">
+            <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: var(--bili-blue);">🛠️ 过滤规则设置</h4>
+            <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
+              <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
+                <label style="font-size: 12px;">最小时长 (分钟)</label>
+                <input type="number" id="subDetailMinDuration" class="input-field" min="0" step="1">
+              </div>
+              <div class="form-group" style="flex: 2; min-width: 250px; margin-bottom: 0;">
+                <label style="font-size: 12px;">包含关键字 (逗号分隔，留空不限)</label>
+                <input type="text" id="subDetailKeywords" class="input-field" placeholder="例如: 播客, 聊天">
+              </div>
+              <div>
+                <button id="btnSaveSubRules" class="btn btn-primary btn-sm">💾 保存规则</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Local Files -->
+          <div style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 250px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h4 style="margin: 0; font-size: 14px; color: var(--bili-blue);">📁 本地音频管理</h4>
+              <div>
+                <button id="btnLocalFilesSelectAll" class="btn btn-secondary btn-sm">全选</button>
+                <button id="btnLocalFilesUnselectAll" class="btn btn-secondary btn-sm">反选</button>
+              </div>
+            </div>
+            <div style="color: var(--text-muted); font-size: 12px;">勾选不需要的音频以从本地永久删除（删除后不会再次被自动下载）</div>
+            
+            <div id="localFilesListContainer" style="overflow-y: auto; flex: 1; border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-md); padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="text-align: center; color: var(--text-muted); padding: 30px;">正在加载音频列表...</div>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 15px;">
+              <span id="localFilesSelectedCount" style="color: var(--bili-pink); font-size: 14px; font-weight: bold;">已选: 0</span>
+              <button id="btnDeleteSelectedFiles" class="btn btn-primary" style="background: #EF4444; box-shadow: none;">🗑️ 永久删除选中音频</button>
+            </div>
+          </div>
+          
+          <!-- Danger Zone / Quick Actions -->
+          <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <button id="btnCheckSingleSubDetail" class="btn btn-glass btn-sm">⚡ 立即手动检查更新</button>
+            <button id="btnDeleteSubDetail" class="btn btn-secondary btn-sm" style="color: #EF4444; border-color: rgba(239,68,68,0.4);">🚨 彻底取消订阅并清理全部文件</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Unified Subscription Modal -->
+    <div id="unifiedSubModal" class="modal-backdrop hidden">
+      <div class="modal-content glass-panel" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="flex-shrink: 0;">
+          <h3>⭐ 配置订阅与批量下载</h3>
+          <button id="btnCloseUnifiedSub" class="modal-close">&times;</button>
+        </div>
+        
+        <div class="modal-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 20px;">
+          
+          <!-- UP Profile -->
+          <div class="up-profile-card" style="margin: 0; flex-shrink: 0; padding: 15px;">
+            <div class="up-info-main">
+              <img id="upAvatar" src="" alt="UP Avatar" class="up-avatar">
+              <div class="up-details">
+                <div class="up-header">
+                  <h2 id="upName" class="up-name"></h2>
+                  <span id="upMid" class="up-mid"></span>
+                </div>
+                <p id="upSign" class="up-sign" style="margin: 5px 0 10px 0;"></p>
+                <div class="up-stats">
+                  <span class="stat-tag"><span class="icon">📺</span> 总历史视频数: <strong id="upTotalVideos">0</strong></span>
+                  <span class="stat-tag" style="background: rgba(139,92,246,0.2); color: #C4B5FD;"><span class="icon">🎵</span> 符合筛选条件: <strong id="filteredCount">0</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuration & Filters -->
+          <div style="display: flex; gap: 15px; flex-shrink: 0; flex-wrap: wrap;">
+            <div class="filter-item" style="flex: 1; min-width: 200px;">
               <label for="subDurationMinInput"><span class="icon">⏱️</span> 最小时长 (分钟):</label>
               <input type="number" id="subDurationMinInput" value="0" min="0" step="1" style="width: 100%;">
             </div>
-            <div class="filter-item filter-search" style="width: 100%;">
-              <label for="subKeywordInput"><span class="icon">🔑</span> 包含关键字 (留空则不限制):</label>
+            <div class="filter-item filter-search" style="flex: 2; min-width: 250px;">
+              <label for="subKeywordInput"><span class="icon">🔑</span> 包含关键字:</label>
               <input type="text" id="subKeywordInput" placeholder="多关键字可用空格隔开..." style="width: 100%;">
             </div>
-            <div class="filter-item" style="width: 100%; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-              <label for="subHistoryCountInput"><span class="icon">📦</span> 顺便下载历史最新 N 个视频:</label>
-              <input type="number" id="subHistoryCountInput" value="0" min="0" step="1" style="width: 100%;" placeholder="0 表示只订阅未来更新，不下载历史">
-              <span style="font-size: 11px; color: var(--text-muted); display: block; margin-top: 5px;">* 0表示仅监听未来更新。填入数字将自动挑选符合上面条件的最新 N 个历史视频加入下载队列。</span>
+            <div class="filter-item" style="flex: 1.5; min-width: 250px;">
+              <label for="subHistoryCountInput"><span class="icon">📦</span> 自动转存历史视频数:</label>
+              <input type="number" id="subHistoryCountInput" value="0" min="0" step="1" style="width: 100%;" placeholder="0 表示不下载历史">
             </div>
           </div>
-          <div style="margin-top: 25px; text-align: right;">
-            <button id="btnConfirmSub" class="btn btn-primary" style="width: 100%;">确定订阅</button>
+          <div style="font-size: 12px; color: var(--text-muted); flex-shrink: 0;">
+            * 提示：订阅后系统会自动监听未来的新视频。修改上方筛选条件，下方列表会实时更新。填入转存数量会自动从匹配列表中挑选最新 N 个音频加入下载队列。
           </div>
+
+          <!-- Preview Grid -->
+          <div id="videoGrid" style="overflow-y: auto; flex: 1; padding-right: 5px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+            <!-- Videos inject here -->
+          </div>
+          
+        </div>
+        
+        <div style="flex-shrink: 0; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right;">
+          <button id="btnConfirmSub" class="btn btn-gradient btn-lg" style="width: 200px;">🚀 确定订阅</button>
         </div>
       </div>
     </div>
