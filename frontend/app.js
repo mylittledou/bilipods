@@ -123,7 +123,7 @@ async function pollQrStatus() {
 // 2. UP Search
 async function performUpSearch(query) {
   document.getElementById('btnSearchUp').disabled = true;
-  document.getElementById('btnSearchUp').textContent = "解析中...";
+  document.getElementById('btnSearchUp').textContent = "正在深度拉取全部视频(可能需要几秒)...";
 
   try {
     const res = await fetch(`/api/up/search?query=${encodeURIComponent(query)}`);

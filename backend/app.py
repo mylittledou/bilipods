@@ -86,7 +86,7 @@ def search_up(query: str):
         raise HTTPException(status_code=400, detail="无法从输入中解析出有效的 UP 主数字 ID 或主页链接")
     try:
         up_info = bilibili_client.get_up_info(mid)
-        videos_res = bilibili_client.get_up_videos(mid, page=1, page_size=50)
+        videos_res = bilibili_client.get_all_up_videos(mid)
         return {
             "up_info": up_info,
             "videos": videos_res["videos"],
@@ -98,9 +98,9 @@ def search_up(query: str):
         raise HTTPException(status_code=500, detail=f"获取 UP 主信息失败: {str(e)}")
 
 @app.get("/api/up/videos")
-def get_up_videos(mid: int, page: int = 1, page_size: int = 50):
+def get_up_videos(mid: int):
     try:
-        return bilibili_client.get_up_videos(mid, page=page, page_size=page_size)
+        return bilibili_client.get_all_up_videos(mid)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取视频列表失败: {str(e)}")
 
