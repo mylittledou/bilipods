@@ -293,6 +293,32 @@ class BilibiliClient:
             "page_size": page_info.get('ps', page_size)
         }
 
+    def get_all_up_videos(self, mid: int) -> dict:
+        """Fetch ALL videos of an UP host automatically paginating"""
+        all_videos = []
+        page = 1
+        total = 0
+        import time
+        while True:
+            try:
+                res = self.get_up_videos(mid, page=page, page_size=50)
+                all_videos.extend(res["videos"])
+                total = res["total"]
+                if len(all_videos) >= total or len(res["videos"]) == 0:
+                    break
+                page += 1
+                time.sleep(0.5)
+            except Exception as e:
+                print(f"Error fetching videos page {page}: {e}")
+                break
+                
+        return {
+            "videos": all_videos,
+            "total": total,
+            "page": 1,
+            "page_size": len(all_videos) if all_videos else 50
+        }
+
     def get_play_info(self, bvid: str, cid: Optional[int] = None) -> dict:
         if not cid:
             view_resp = self.session.get(f'https://api.bilibili.com/x/web-interface/view?bvid={bvid}', timeout=5).json()
