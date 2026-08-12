@@ -4,6 +4,7 @@ import urllib.parse
 from email.utils import formatdate
 import xml.etree.ElementTree as ET
 from mutagen.mp4 import MP4
+import hashlib
 
 def generate_podcast_rss(
     up_name: str,
@@ -35,7 +36,7 @@ def generate_podcast_rss(
     
     # Show Cover (Album Cover: cover.jpg in UP directory)
     encoded_up_name = urllib.parse.quote(up_name)
-    show_cover_url = f"{server_base_url}/downloads/{encoded_up_name}/cover.jpg"
+    show_cover_url = f"{server_base_url}/downloads/{encoded_up_name}/cover.jpg?v={int(time.time())}"
     ET.SubElement(channel, "itunes:image", {"href": show_cover_url})
     
     category = ET.SubElement(channel, "itunes:category", {"text": "Leisure"})
@@ -95,13 +96,14 @@ def generate_podcast_rss(
             "type": "audio/mp4"
         })
         
-        ET.SubElement(item, "guid", {"isPermaLink": "false"}).text = f"bilipods-{filename}"
+        guid_hash = hashlib.md5(f"bilipods-{filename}".encode('utf-8')).hexdigest()
+        ET.SubElement(item, "guid", {"isPermaLink": "false"}).text = f"bilipods-{guid_hash}"
         ET.SubElement(item, "itunes:author").text = up_name
         if duration_sec > 0:
             ET.SubElement(item, "itunes:duration").text = str(duration_sec)
         
         # Episode Cover URL (serves embedded artwork via endpoint /api/artwork/{up_name}/{filename}/cover.jpg)
-        ep_cover_url = f"{server_base_url}/api/artwork/{encoded_up_name}/{encoded_filename}/cover.jpg"
+        ep_cover_url = f"{server_base_url}/api/artwork/{encoded_up_name}/{encoded_filename}/cover.jpg?v={int(file_mtime)}"
         ET.SubElement(item, "itunes:image", {"href": ep_cover_url})
         
     return ET.tostring(rss, encoding="utf-8", xml_declaration=True).decode("utf-8")

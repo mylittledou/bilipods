@@ -339,7 +339,8 @@ def proxy_abs_rss(url: str, up_name: str, request: Request):
             
             filename = f"{sanitize_filename(title_node.text)}.m4a"
             encoded_filename = urllib.parse.quote(filename)
-            ep_cover_url = f"{server_base_url}/api/artwork/{encoded_up_name}/{encoded_filename}/cover.jpg"
+            import time
+            ep_cover_url = f"{server_base_url}/api/artwork/{encoded_up_name}/{encoded_filename}/cover.jpg?v={int(time.time())}"
             
             existing_img = item.find(f'{itunes_ns}image')
             if existing_img is not None:
