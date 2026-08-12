@@ -428,7 +428,7 @@ async function openSubDetailModal(s) {
   
   // RSS Link
   const baseUrl = window.location.origin;
-  const rssNative = `${baseUrl}/downloads/${encodeURIComponent(upName)}/rss.xml`;
+  const rssNative = `${baseUrl}/rss/${mid}`;
   document.getElementById('subDetailRss').textContent = rssNative;
   document.getElementById('btnCopyRss').onclick = () => {
     navigator.clipboard.writeText(rssNative);
