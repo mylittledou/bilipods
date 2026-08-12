@@ -6,8 +6,7 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY:-user/bilipods}:latest
     container_name: bilipods
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    network_mode: "host"
     volumes:
       - ./downloads:/app/downloads
       - ./cookies.json:/app/cookies.json
