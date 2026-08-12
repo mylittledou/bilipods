@@ -247,7 +247,11 @@ def get_channel_artwork(up_name: str):
     if avatar_url:
         try:
             import requests
-            resp = requests.get(avatar_url, timeout=5)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Referer': 'https://space.bilibili.com/'
+            }
+            resp = requests.get(avatar_url, headers=headers, timeout=5)
             if resp.status_code == 200:
                 content_type = resp.headers.get("Content-Type", "image/jpeg")
                 return Response(content=resp.content, media_type=content_type)
