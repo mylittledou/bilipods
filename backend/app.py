@@ -237,27 +237,40 @@ def get_rss(mid_or_name: str, request: Request):
 
 @app.api_route("/api/artwork/{up_name}/cover.jpg", methods=["GET", "HEAD"])
 def get_channel_artwork(up_name: str):
-    dir_path = os.path.join(DOWNLOAD_DIR, up_name)
-    if not os.path.exists(dir_path):
-        raise HTTPException(status_code=404, detail="目录不存在")
-        
-    m4a_files = [f for f in os.listdir(dir_path) if f.endswith(".m4a")]
-    if not m4a_files:
-        raise HTTPException(status_code=404, detail="未找到音频文件")
-        
-    m4a_files.sort(key=lambda x: os.path.getmtime(os.path.join(dir_path, x)), reverse=True)
-    
-    for filename in m4a_files:
-        filepath = os.path.join(dir_path, filename)
+    # 1. Try to serve the UP host's avatar from subscription metadata
+    avatar_url = None
+    for sub in subscription_mgr.subscriptions.values():
+        if sub.get('up_name') == up_name:
+            avatar_url = sub.get('up_avatar')
+            break
+            
+    if avatar_url:
         try:
-            m4a = MP4(filepath)
-            covers = m4a.get("covr")
-            if covers:
-                art_data = bytes(covers[0])
-                content_type = "image/png" if art_data.startswith(b'\x89PNG') else "image/jpeg"
-                return Response(content=art_data, media_type=content_type)
-        except Exception:
-            continue
+            import requests
+            resp = requests.get(avatar_url, timeout=5)
+            if resp.status_code == 200:
+                content_type = resp.headers.get("Content-Type", "image/jpeg")
+                return Response(content=resp.content, media_type=content_type)
+        except Exception as e:
+            print(f"Failed to fetch avatar for {up_name}: {e}")
+
+    # 2. Fallback to embedded cover from latest audio file
+    dir_path = os.path.join(DOWNLOAD_DIR, up_name)
+    if os.path.exists(dir_path):
+        m4a_files = [f for f in os.listdir(dir_path) if f.endswith(".m4a")]
+        if m4a_files:
+            m4a_files.sort(key=lambda x: os.path.getmtime(os.path.join(dir_path, x)), reverse=True)
+            for filename in m4a_files:
+                filepath = os.path.join(dir_path, filename)
+                try:
+                    m4a = MP4(filepath)
+                    covers = m4a.get("covr")
+                    if covers:
+                        art_data = bytes(covers[0])
+                        content_type = "image/png" if art_data.startswith(b'\x89PNG') else "image/jpeg"
+                        return Response(content=art_data, media_type=content_type)
+                except Exception:
+                    continue
             
     raise HTTPException(status_code=404, detail="未找到封面图片")
 
