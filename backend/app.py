@@ -268,10 +268,23 @@ def add_subscription(req: SubscriptionRequest):
 
 @app.delete("/api/subscriptions/{mid}")
 def delete_subscription(mid: int):
+    # Retrieve sub to get the up_name for deleting local files
+    sub = subscription_mgr.get_subscription(mid)
+    
     success = subscription_mgr.remove_subscription(mid)
     if not success:
         raise HTTPException(status_code=404, detail="订阅不存在")
-    return {"status": "ok", "message": f"MID {mid} 订阅已取消"}
+        
+    import shutil
+    if sub and "up_name" in sub:
+        up_dir = os.path.join(DOWNLOAD_DIR, sub["up_name"])
+        if os.path.exists(up_dir):
+            try:
+                shutil.rmtree(up_dir)
+            except Exception as e:
+                print(f"Failed to delete directory {up_dir}: {e}")
+                
+    return {"status": "ok", "message": f"MID {mid} 订阅已取消，本地文件已清理"}
 
 @app.post("/api/subscriptions/check")
 async def check_subscriptions_now(mid: Optional[int] = None):
@@ -302,13 +315,13 @@ def proxy_img(url: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/up/followings")
-def get_followings(page: int = 1):
+def get_followings():
     user_info = bilibili_client.get_login_user_info()
     if not user_info or not user_info.get("is_login"):
         raise HTTPException(status_code=401, detail="未登录，无法获取关注列表")
     try:
-        data = bilibili_client.get_followings(user_info["mid"], pn=page, ps=50)
-        return {"status": "ok", "data": data}
+        all_list = bilibili_client.get_all_followings(user_info["mid"])
+        return {"status": "ok", "data": {"list": all_list, "total": len(all_list)}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
