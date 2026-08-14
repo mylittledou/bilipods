@@ -36,19 +36,13 @@ class SubscriptionManager:
         min_duration_minutes: float = 0,
         keywords: Optional[List[str]] = None,
         auto_download: bool = True,
-        ignore_bvids: Optional[List[str]] = None
+        ignore_bvids: Optional[List[str]] = None,
+        keep_count: int = 0
     ) -> dict:
         key = str(mid)
         existing = self.subscriptions.get(key, {})
         downloaded_bvids = existing.get('downloaded_bvids', [])
         
-        # Populate downloaded_bvids from existing downloads directory if present
-        up_dir = os.path.join(self.download_dir, sanitize_filename(up_name))
-        if os.path.exists(up_dir):
-            for fname in os.listdir(up_dir):
-                if fname.endswith(".m4a") and not fname.startswith("_temp_"):
-                    pass
-                    
         if ignore_bvids:
             for b in ignore_bvids:
                 if b not in downloaded_bvids:
@@ -61,6 +55,7 @@ class SubscriptionManager:
             "enabled": auto_download,
             "min_duration_minutes": float(min_duration_minutes),
             "keywords": keywords or [],
+            "keep_count": keep_count,
             "last_check_time": int(time.time()),
             "downloaded_bvids": downloaded_bvids
         }
@@ -72,7 +67,8 @@ class SubscriptionManager:
         self,
         mid: int,
         min_duration_minutes: Optional[float] = None,
-        keywords: Optional[List[str]] = None
+        keywords: Optional[List[str]] = None,
+        keep_count: Optional[int] = None
     ) -> Optional[dict]:
         key = str(mid)
         if key not in self.subscriptions:
@@ -83,9 +79,16 @@ class SubscriptionManager:
             sub["min_duration_minutes"] = float(min_duration_minutes)
         if keywords is not None:
             sub["keywords"] = keywords
+        if keep_count is not None:
+            sub["keep_count"] = int(keep_count)
             
         self.subscriptions[key] = sub
         self.save()
+        
+        # Immediately trigger cleanup if keep_count was reduced
+        if keep_count is not None and keep_count > 0:
+            self.cleanup_old_audios(sub['up_name'], keep_count)
+            
         return sub
 
 
@@ -174,6 +177,11 @@ class SubscriptionManager:
         sub['last_check_time'] = int(time.time())
         self.subscriptions[key] = sub
         self.save()
+        
+        # Enforce retention policy
+        keep_count = sub.get('keep_count', 0)
+        if keep_count > 0:
+            self.cleanup_old_audios(up_name, keep_count)
 
         return {
             "mid": mid,
@@ -192,3 +200,31 @@ class SubscriptionManager:
                 except Exception as e:
                     print(f"Error checking subscription for MID {key}: {e}")
         return results
+
+    def cleanup_old_audios(self, up_name: str, keep_count: int):
+        if keep_count <= 0:
+            return
+        
+        up_dir = os.path.join(self.download_dir, sanitize_filename(up_name))
+        if not os.path.exists(up_dir):
+            return
+            
+        # List all m4a files
+        files = []
+        for fname in os.listdir(up_dir):
+            if fname.endswith(".m4a") and not fname.startswith("_temp_"):
+                fpath = os.path.join(up_dir, fname)
+                if os.path.isfile(fpath):
+                    files.append((fpath, os.path.getctime(fpath)))
+                    
+        if len(files) > keep_count:
+            # Sort by creation time descending (newest first)
+            files.sort(key=lambda x: x[1], reverse=True)
+            # Files to delete are the ones after keep_count
+            files_to_delete = files[keep_count:]
+            for fpath, _ in files_to_delete:
+                try:
+                    os.remove(fpath)
+                    print(f"Cleanup: Removed old audio {fpath}")
+                except Exception as e:
+                    print(f"Error removing {fpath}: {e}")

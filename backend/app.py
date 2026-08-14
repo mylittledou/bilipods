@@ -47,10 +47,12 @@ class SubscriptionRequest(BaseModel):
     keywords: Optional[List[str]] = []
     auto_download: bool = True
     ignore_bvids: Optional[List[str]] = []
+    keep_count: int = 0
 
 class SubscriptionUpdateRequest(BaseModel):
     min_duration_minutes: Optional[float] = None
     keywords: Optional[List[str]] = None
+    keep_count: Optional[int] = None
 
 async def background_subscription_checker():
     """Periodically check all subscribed UP hosts every 15 minutes"""
@@ -83,6 +85,26 @@ def poll_qr_code(qrcode_key: str):
 @app.get("/api/auth/status")
 def get_auth_status():
     return bilibili_client.get_login_user_info()
+
+class CookieLoginRequest(BaseModel):
+    cookie_string: str
+
+@app.post("/api/auth/cookie")
+def login_with_cookie(req: CookieLoginRequest):
+    if not req.cookie_string:
+        raise HTTPException(status_code=400, detail="Cookie不能为空")
+    bilibili_client.set_cookies_from_string(req.cookie_string)
+    user_info = bilibili_client.get_login_user_info()
+    if user_info and user_info.get("is_login"):
+        return user_info
+    else:
+        raise HTTPException(status_code=401, detail="Cookie无效或已过期")
+
+@app.post("/api/auth/logout")
+def logout():
+    bilibili_client.session.cookies.clear()
+    bilibili_client.save_cookies()
+    return {"code": 0, "message": "Logged out"}
 
 @app.get("/api/up/search")
 def search_up(query: str):
@@ -307,7 +329,8 @@ def add_subscription(req: SubscriptionRequest):
         min_duration_minutes=req.min_duration_minutes,
         keywords=req.keywords,
         auto_download=req.auto_download,
-        ignore_bvids=req.ignore_bvids
+        ignore_bvids=req.ignore_bvids,
+        keep_count=req.keep_count
     )
     return {"status": "ok", "subscription": sub}
 
@@ -316,7 +339,8 @@ def update_subscription(mid: int, req: SubscriptionUpdateRequest):
     sub = subscription_mgr.update_subscription(
         mid=mid,
         min_duration_minutes=req.min_duration_minutes,
-        keywords=req.keywords
+        keywords=req.keywords,
+        keep_count=req.keep_count
     )
     if not sub:
         raise HTTPException(status_code=404, detail="订阅不存在")

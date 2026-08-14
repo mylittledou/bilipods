@@ -5,6 +5,28 @@ let selectedBvids = new Set();
 let qrPollTimer = null;
 let currentQrKey = null;
 
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px);
+    background: var(--accent-1); color: white; border: 4px solid var(--border-color);
+    box-shadow: 8px 8px 0px 0px var(--border-color); padding: 12px 24px;
+    font-weight: 900; z-index: 10000; opacity: 0; transition: all 0.3s;
+    max-width: 80%; text-align: center; word-break: break-word; white-space: pre-wrap;
+  `;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => {
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    toast.style.opacity = '1';
+  });
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(-100px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initAuthStatus();
   setupEventListeners();
@@ -13,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 1. Auth Status & QR Login
 async function initAuthStatus() {
   try {
-    const res = await fetch('/api/auth/status');
+    const res = await fetch('/api/auth/status?t=' + Date.now());
     const data = await res.json();
     if (data.is_login) {
       document.getElementById('loggedOutView').classList.add('hidden');
@@ -34,6 +56,18 @@ function setupEventListeners() {
   document.getElementById('btnShowQr').addEventListener('click', showQrModal);
   document.getElementById('btnCloseQr').addEventListener('click', closeQrModal);
   document.getElementById('btnRefreshQr').addEventListener('click', showQrModal);
+  document.getElementById('btnSubmitCookie').addEventListener('click', submitCookieLogin);
+  document.getElementById('btnLogout').addEventListener('click', async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      document.getElementById('loggedInView').classList.add('hidden');
+      document.getElementById('loggedOutView').classList.remove('hidden');
+      document.getElementById('btnShowFollowed').classList.add('hidden');
+      showToast("已成功退出登录！");
+    } catch (e) {
+      console.error(e);
+    }
+  });
 
   document.getElementById('btnSearchUp').addEventListener('click', handleUpSearch);
   document.getElementById('upQueryInput').addEventListener('keypress', (e) => {
@@ -116,7 +150,7 @@ async function pollQrStatus() {
       // Login success
       closeQrModal();
       initAuthStatus();
-      alert("登录成功！");
+      showToast("登录成功！");
     } else if (data.code === 86038) {
       // Expired
       clearInterval(qrPollTimer);
@@ -125,6 +159,38 @@ async function pollQrStatus() {
     }
   } catch (err) {
     console.error("Poll QR status error:", err);
+  }
+}
+
+// Cookie Login
+async function submitCookieLogin() {
+  const cookieStr = document.getElementById('cookieInput').value.trim();
+  if (!cookieStr) {
+    showToast("请先输入 Cookie！");
+    return;
+  }
+  const btn = document.getElementById('btnSubmitCookie');
+  btn.disabled = true;
+  btn.textContent = "验证中...";
+  try {
+    const res = await fetch('/api/auth/cookie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cookie_string: cookieStr })
+    });
+    const data = await res.json();
+    if (res.ok && data.is_login) {
+      showToast("登录成功！");
+      closeQrModal();
+      initAuthStatus();
+    } else {
+      showToast("登录失败：" + (data.detail || data.message || "Cookie无效"));
+    }
+  } catch (err) {
+    showToast("请求出错：" + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "💾 验证并保存";
   }
 }
 
@@ -165,7 +231,7 @@ async function performUpSearch(query) {
     
     applyFiltersAndRender();
   } catch (err) {
-    alert("解析 UP 主失败: " + err.message);
+    showToast("解析 UP 主失败: " + err.message);
   } finally {
     document.getElementById('btnSearchUp').disabled = false;
     document.getElementById('btnSearchUp').innerHTML = '<span class="icon">🔍</span> 解析 UP 主视频';
@@ -175,7 +241,7 @@ async function performUpSearch(query) {
 async function handleUpSearch() {
   const query = document.getElementById('upQueryInput').value.trim();
   if (!query) {
-    alert("请输入 UP 主主页链接或数字 MID");
+    showToast("请输入 UP 主主页链接或数字 MID");
     return;
   }
   await performUpSearch(query);
@@ -202,7 +268,7 @@ function renderVideoGrid() {
   grid.innerHTML = '';
 
   if (filteredVideos.length === 0) {
-    grid.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 40px;">未找到符合条件的视频</div>`;
+    grid.innerHTML = `<div style="text-align: center; font-weight: 900; color: var(--border-color); padding: 40px;">未找到符合条件的视频</div>`;
     return;
   }
 
@@ -227,7 +293,7 @@ function renderVideoGrid() {
       </div>
       <div class="card-content">
         <div class="video-title" title="${v.title}">${v.title}</div>
-        <div class="card-footer" style="justify-content: flex-start; color: var(--text-sub);">
+        <div class="card-footer" style="justify-content: flex-start; color: var(--text-sub); font-weight: 700;">
           <span class="video-date">${dateStr}</span>
         </div>
       </div>
@@ -274,7 +340,8 @@ async function confirmAddSubscription() {
         min_duration_minutes: minDuration,
         keywords: keywords,
         auto_download: true,
-        ignore_bvids: toIgnore
+        ignore_bvids: toIgnore,
+        keep_count: historyCount
       })
     });
     if (!res.ok) throw new Error("保存订阅失败");
@@ -293,10 +360,10 @@ async function confirmAddSubscription() {
       }
     }
 
-    alert(`已成功添加【${upName}】的自动更新订阅！\n系统将每 15 分钟后台轮询新上传的非付费视频（时长 > ${minDuration} 分钟${keywords.length ? '，匹配关键字: ' + keywords.join('/') : ''}）。${historyMsg}`);
+    showToast(`已成功添加【${upName}】的自动更新订阅！\n系统将每 15 分钟后台轮询新上传的非付费视频（时长 > ${minDuration} 分钟${keywords.length ? '，匹配关键字: ' + keywords.join('/') : ''}）。${historyMsg}`);
     document.getElementById('unifiedSubModal').classList.add('hidden');
   } catch (err) {
-    alert("添加订阅失败: " + err.message);
+    showToast("添加订阅失败: " + err.message);
   } finally {
     document.getElementById('btnConfirmSub').disabled = false;
     document.getElementById('btnConfirmSub').textContent = "确定订阅";
@@ -337,13 +404,13 @@ async function loadSubscriptions() {
       card.style.gap = '15px';
       
       card.innerHTML = `
-        <img class="sub-avatar" style="width:50px; height:50px; border-radius:50%; object-fit:cover;" src="${s.up_avatar || '/favicon.ico'}" alt="${s.up_name}" onerror="this.onerror=null;this.src='/api/proxy_img?url=${encodeURIComponent(s.up_avatar)}';">
-        <div style="flex: 1;">
-          <div class="sub-name" style="font-size: 16px; font-weight:bold;">${s.up_name}</div>
+        <img class="sub-avatar" style="width:50px; height:50px; border-radius:0; border: 4px solid var(--border-color); object-fit:cover; flex-shrink: 0;" src="${s.up_avatar || '/favicon.ico'}" alt="${s.up_name}" onerror="this.onerror=null;this.src='/api/proxy_img?url=${encodeURIComponent(s.up_avatar)}';">
+        <div style="flex: 1; min-width: 0; overflow: hidden;">
+          <div class="sub-name" style="font-size: 16px; font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.up_name}</div>
         </div>
         <div style="display:flex; align-items:center; gap: 8px;">
-          <span style="background: rgba(255,255,255,0.1); padding: 4px 10px; border-radius: 20px; font-size: 12px; color: var(--bili-blue);">已转存: ${s.downloaded_count || 0} 首 ↗</span>
-          <button class="btn btn-secondary btn-sm btn-quick-remove" style="border-radius:50%; width:28px; height:28px; padding:0; display:flex; justify-content:center; align-items:center; color:#EF4444; border:none; background:rgba(239,68,68,0.1);" title="取消订阅并清理">❌</button>
+          <span style="background: var(--bg-color); border: 2px solid var(--border-color); padding: 4px 10px; font-size: 12px; font-weight: 900; color: var(--border-color);">已转存: ${s.downloaded_count || 0} 首 ↗</span>
+          <button class="btn btn-secondary btn-sm btn-quick-remove" style="width:28px; height:28px; padding:0; display:flex; justify-content:center; align-items:center; background: var(--accent-1); color: white;" title="取消订阅并清理">❌</button>
         </div>
       `;
       
@@ -367,7 +434,7 @@ async function quickRemoveSub(mid) {
     if (!res.ok) throw new Error("删除失败");
     loadSubscriptions(); // Refresh list immediately
   } catch (err) {
-    alert("删除失败: " + err.message);
+    showToast("删除失败: " + err.message);
   }
 }
 
@@ -376,10 +443,10 @@ async function checkSingleSub(mid) {
     const res = await fetch('/api/subscriptions/check?mid=' + mid, { method: 'POST' });
     const data = await res.json();
     const result = data.results[0];
-    alert(`【${result.up_name}】检查完成！获取到 ${result.downloaded_count} 个符合规则的新单集。`);
+    showToast(`【${result.up_name}】检查完成！获取到 ${result.downloaded_count} 个符合规则的新单集。`);
     loadSubscriptions();
   } catch (err) {
-    alert("检查失败: " + err.message);
+    showToast("检查失败: " + err.message);
   }
 }
 
@@ -392,10 +459,10 @@ async function checkAllSubsNow() {
     const data = await res.json();
     let totalNew = 0;
     data.results.forEach(r => { totalNew += (r.downloaded_count || 0); });
-    alert(`全量检查完成！共处理获得 ${totalNew} 个新单集。`);
+    showToast(`全量检查完成！共处理获得 ${totalNew} 个新单集。`);
     loadSubscriptions();
   } catch (err) {
-    alert("全量检查失败: " + err.message);
+    showToast("全量检查失败: " + err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = "⚡ 立即手动全量检查更新";
@@ -432,12 +499,13 @@ async function openSubDetailModal(s) {
   document.getElementById('subDetailRss').textContent = rssNative;
   document.getElementById('btnCopyRss').onclick = () => {
     navigator.clipboard.writeText(rssNative);
-    alert('原生 RSS 链接已复制');
+    showToast('原生 RSS 链接已复制');
   };
   
   // Rules Settings
   document.getElementById('subDetailMinDuration').value = s.min_duration_minutes || 0;
   document.getElementById('subDetailKeywords').value = (s.keywords && s.keywords.length) ? s.keywords.join(', ') : '';
+  document.getElementById('subDetailKeepCount').value = s.keep_count || 0;
   
   // Re-bind actions (remove old listeners by cloning or just assigning onclick to prevent duplicates)
   document.getElementById('btnSaveSubRules').onclick = () => saveSubRules(mid);
@@ -456,6 +524,7 @@ async function saveSubRules(mid) {
   const minDuration = parseFloat(document.getElementById('subDetailMinDuration').value) || 0;
   const kwStr = document.getElementById('subDetailKeywords').value.trim();
   const keywords = kwStr ? kwStr.split(/[,，\s]+/).filter(k => k) : [];
+  const keepCount = parseInt(document.getElementById('subDetailKeepCount').value) || 0;
   
   btn.disabled = true;
   btn.textContent = "保存中...";
@@ -466,18 +535,19 @@ async function saveSubRules(mid) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         min_duration_minutes: minDuration,
-        keywords: keywords
+        keywords: keywords,
+        keep_count: keepCount
       })
     });
     if (!res.ok) throw new Error("保存失败");
-    alert("规则已保存！下一次后台检查将应用新规则。");
+    showToast("规则已保存！下一次后台检查将应用新规则。");
     // Background refresh subList so main view is updated when we go back
     loadSubscriptions();
   } catch (err) {
-    alert("保存失败: " + err.message);
+    showToast("保存失败: " + err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = "💾 保存规则";
+    btn.textContent = "💾 保存";
   }
 }
 
@@ -511,7 +581,7 @@ async function loadLocalFiles(mid) {
       const dateStr = new Date(f.mtime * 1000).toLocaleString();
       
       item.innerHTML = `
-        <input type="checkbox" class="local-file-checkbox" value="${f.filename}" style="width: 18px; height: 18px; accent-color: var(--bili-pink);">
+        <input type="checkbox" class="local-file-checkbox" value="${f.filename}" style="width: 18px; height: 18px; accent-color: var(--accent-1);">
         <div style="flex: 1; overflow: hidden;">
           <div style="font-size: 14px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${f.filename}">${f.filename}</div>
           <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
@@ -537,7 +607,7 @@ function updateLocalFilesSelectedCount() {
 async function deleteSelectedFiles() {
   const checkboxes = document.querySelectorAll('.local-file-checkbox:checked');
   if (checkboxes.length === 0) {
-    alert("请先勾选需要删除的音频");
+    showToast("请先勾选需要删除的音频");
     return;
   }
   
@@ -561,9 +631,9 @@ async function deleteSelectedFiles() {
     const data = await res.json();
     
     if (data.errors && data.errors.length > 0) {
-      alert(`部分文件删除失败:\n${data.errors.join('\n')}`);
+      showToast(`部分文件删除失败:\n${data.errors.join('\n')}`);
     } else {
-      alert(`成功删除了 ${data.deleted_count} 个音频！`);
+      showToast(`成功删除了 ${data.deleted_count} 个音频！`);
     }
     
     // Reload local files
@@ -571,7 +641,7 @@ async function deleteSelectedFiles() {
     // Also trigger background update of subscription count
     loadSubscriptions(); 
   } catch (err) {
-    alert("删除出错: " + err.message);
+    showToast("删除出错: " + err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = "🗑️ 永久删除选中的音频";
@@ -589,11 +659,11 @@ async function removeSub(mid) {
   try {
     const res = await fetch(`/api/subscriptions/${mid}`, { method: 'DELETE' });
     if (!res.ok) throw new Error("删除失败");
-    alert("已彻底删除该订阅及所有本地文件。");
+    showToast("已彻底删除该订阅及所有本地文件。");
     document.getElementById('subDetailModal').classList.add('hidden');
     showSubModal(); // Re-open list view
   } catch (err) {
-    alert("删除失败: " + err.message);
+    showToast("删除失败: " + err.message);
   } finally {
     btn.disabled = false;
     btn.textContent = origText;
@@ -604,7 +674,7 @@ async function removeSub(mid) {
 async function showFollowingsModal() {
   document.getElementById('followingsModal').classList.remove('hidden');
   const container = document.getElementById('followingsListContainer');
-  container.innerHTML = '<div style="text-align: center; color: var(--text-sub); padding: 30px;">正在深度拉取您账号下全量的关注列表，请耐心等待（如果您关注了非常多 UP 主，这可能需要几秒钟）...<br><br><div style="font-size:24px; animation: spin 1s linear infinite;">⏳</div></div>';
+  container.innerHTML = '<div style="text-align: center; color: var(--border-color); font-weight: 900; padding: 30px;">正在深度拉取您账号下全量的关注列表，请耐心等待（如果您关注了非常多 UP 主，这可能需要几秒钟）...<br><br><div style="font-size:24px; animation: spin 1s linear infinite;">⏳</div></div>';
 
   try {
     const res = await fetch('/api/up/followings');
@@ -630,11 +700,11 @@ async function showFollowingsModal() {
       const sign = up.sign || '无简介';
 
       card.innerHTML = `
-        <div class="sub-card-info" style="pointer-events: none;">
-          <img class="sub-avatar" src="${avatar}" alt="${up.uname}" onerror="this.onerror=null;this.src='/api/proxy_img?url=${encodeURIComponent(avatar)}';">
-          <div style="overflow: hidden;">
-            <div class="sub-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${up.uname}</div>
-            <div class="sub-meta" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${sign}">${sign}</div>
+        <div class="sub-card-info" style="pointer-events: none; display: flex; align-items: center; gap: 16px; width: 100%;">
+          <img class="sub-avatar" style="width: 50px; height: 50px; border-radius: 0; border: 4px solid var(--border-color); object-fit: cover; flex-shrink: 0;" src="${avatar}" alt="${up.uname}" onerror="this.onerror=null;this.src='/api/proxy_img?url=${encodeURIComponent(avatar)}';">
+          <div style="flex: 1; min-width: 0; overflow: hidden;">
+            <div class="sub-name" style="font-size: 16px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${up.uname}</div>
+            <div class="sub-meta" style="font-size: 13px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${sign}">${sign}</div>
           </div>
         </div>
       `;

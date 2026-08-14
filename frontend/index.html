@@ -7,15 +7,10 @@
   <title>BiliPods - B站视频转播客音频提取工具</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body>
-  <div class="background-decor">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
-  </div>
 
   <header class="header">
     <div class="logo">
@@ -35,10 +30,13 @@
           <span class="icon">📱</span> 扫码登录 B 站
         </button>
       </div>
-      <div id="loggedInView" class="hidden">
-        <img id="userAvatar" class="avatar-small" src="" alt="用户头像">
-        <span id="userName" class="user-name">B站用户</span>
-        <span id="vipBadge" class="vip-badge hidden">大会员</span>
+      <div id="loggedInView" class="hidden" style="display: flex; align-items: center; gap: 10px;">
+        <img id="userAvatar" class="user-avatar" src="" alt="头像" style="width: 32px; height: 32px; border-radius: 50%;">
+        <div style="display: flex; flex-direction: column;">
+          <span id="userName" class="user-name"></span>
+          <span id="vipBadge" class="vip-badge hidden">大会员</span>
+        </div>
+        <button id="btnLogout" class="btn btn-secondary btn-sm">退出</button>
       </div>
     </div>
   </header>
@@ -50,7 +48,7 @@
       <p class="subtitle">一键生成符合 Apple Podcasts 标准的高音质音频与 RSS 订阅源，轻松同步至 Audiobookshelf</p>
       
       <div class="search-bar-glass">
-        <input type="text" id="upQueryInput" placeholder="输入 UP 主主页链接 (例如 https://space.bilibili.com/353840826) 或 MID" autocomplete="off">
+        <input type="text" id="upQueryInput" placeholder="输入 UP 主主页链接，或直接输入 UP 主 ID (MID)" autocomplete="off">
         <button id="btnSearchUp" class="btn btn-primary">
           <span class="icon">🔍</span> 解析 UP 主视频
         </button>
@@ -81,30 +79,40 @@
       </div>
     </div>
 
-    <!-- QR Login Modal -->
+    <!-- Login Modal -->
     <div id="qrModal" class="modal-backdrop hidden">
-      <div class="modal-content glass-panel modal-sm">
+      <div class="modal-content modal-sm">
         <div class="modal-header">
-          <h3>📱 扫码登录 B 站账号</h3>
+          <h3>📱 登录 B 站账号</h3>
           <button id="btnCloseQr" class="modal-close">&times;</button>
         </div>
-        <div class="modal-body qr-modal-body">
-          <p class="qr-tip">请使用 <strong>哔哩哔哩 Mobile App</strong> 扫描下方二维码完成登录，即可解锁高音质音频下载权限。</p>
-          <div class="qr-code-wrapper">
-            <img id="qrCodeImg" src="" alt="登录二维码">
-            <div id="qrOverlay" class="qr-overlay hidden">
-              <span id="qrOverlayMsg">二维码状态</span>
-              <button id="btnRefreshQr" class="btn btn-primary btn-sm">刷新二维码</button>
+        <div class="modal-body qr-modal-body" style="display: flex; flex-direction: column; gap: 20px;">
+          <div>
+            <p class="qr-tip" style="margin-bottom: 10px; font-weight: bold;">方式一：APP 扫码</p>
+            <div class="qr-code-wrapper" style="margin: 0 auto; border: 4px solid var(--border-color); width: fit-content; padding: 10px;">
+              <img id="qrCodeImg" src="" alt="登录二维码" style="display: block; width: 150px; height: 150px;">
+              <div id="qrOverlay" class="qr-overlay hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255,255,255,0.9);">
+                <span id="qrOverlayMsg" style="font-weight: 900; margin-bottom: 10px;">二维码状态</span>
+                <button id="btnRefreshQr" class="btn btn-primary btn-sm">刷新</button>
+              </div>
+            </div>
+            <div id="qrStatusText" class="qr-status-text" style="text-align: center; margin-top: 10px; font-weight: bold;">正在初始化二维码...</div>
+          </div>
+          
+          <div style="border-top: 4px solid var(--border-color); padding-top: 20px;">
+            <p class="qr-tip" style="margin-bottom: 10px; font-weight: bold;">方式二：手动输入 Cookie</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <textarea id="cookieInput" class="input-field" rows="3" placeholder="SESSDATA=xxx; bili_jct=yyy; DedeUserID=zzz;" style="resize: none; font-size: 12px;"></textarea>
+              <button id="btnSubmitCookie" class="btn btn-primary" style="width: 100%;">💾 验证并保存</button>
             </div>
           </div>
-          <div id="qrStatusText" class="qr-status-text">正在初始化二维码...</div>
         </div>
       </div>
     </div>
 
     <!-- Subscriptions Modal -->
     <div id="subModal" class="modal-backdrop hidden">
-      <div class="modal-content glass-panel">
+      <div class="modal-content">
         <div class="modal-header">
           <h3>⭐ 我的 UP 主自动更新订阅</h3>
           <button id="btnCloseSubModal" class="modal-close">&times;</button>
@@ -122,7 +130,7 @@
     </div>
     <!-- Followings Modal -->
     <div id="followingsModal" class="modal-backdrop hidden">
-      <div class="modal-content glass-panel">
+      <div class="modal-content">
         <div class="modal-header">
           <h3>❤️ 我关注的 UP 主</h3>
           <button id="btnCloseFollowings" class="modal-close">&times;</button>
@@ -138,70 +146,65 @@
 
     <!-- Sub Detail & Local Files Manager Modal -->
     <div id="subDetailModal" class="modal-backdrop hidden">
-      <div class="modal-content glass-panel" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
-        <div class="modal-header" style="flex-shrink: 0;">
-          <h3 id="subDetailTitle">⚙️ 订阅设置与管理</h3>
-          <button id="btnCloseSubDetail" class="modal-close">&times;</button>
+      <div class="modal-content" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column; padding: 12px;">
+        <div class="modal-header" style="flex-shrink: 0; margin-bottom: 8px; border-bottom: 4px solid var(--border-color); padding-bottom: 8px;">
+          <h3 id="subDetailTitle" style="font-size: 15px; margin: 0;">⚙️ 订阅设置</h3>
+          <button id="btnCloseSubDetail" class="modal-close" style="font-size: 20px;">&times;</button>
         </div>
-        <div class="modal-body" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding-right: 10px;">
+        <div class="modal-body" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
           
-          <!-- Basic Info & RSS -->
-          <div style="display: flex; align-items: center; gap: 15px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: var(--radius-md);">
-            <img id="subDetailAvatar" src="" alt="avatar" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--bili-pink);">
-            <div style="flex: 1;">
-              <div id="subDetailName" style="font-size: 18px; font-weight: bold; margin-bottom: 5px;"></div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;" id="subDetailMid"></div>
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size: 12px;">
-                <span style="color:var(--text-sub);">原生 RSS 链接 (Apple Podcasts):</span>
-                <button id="btnCopyRss" class="btn btn-text btn-sm" style="padding: 2px 6px; font-size:11px;">复制</button>
+          <!-- Basic Info & RSS (Compact) -->
+          <div class="brutalist-block" style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+            <img id="subDetailAvatar" src="" alt="avatar" style="width: 40px; height: 40px; border-radius: 0; object-fit: cover; border: 4px solid var(--border-color);">
+            <div style="flex: 1; overflow: hidden;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
+                <div id="subDetailName" style="font-size: 14px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                <div id="subDetailMid" style="font-size: 10px; color: var(--text-muted);"></div>
               </div>
-              <div id="subDetailRss" style="font-size: 12px; color:var(--text-muted); word-break: break-all; margin-top: 4px; background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;"></div>
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size: 11px;">
+                <div style="color:var(--text-sub); overflow:hidden; white-space:nowrap; text-overflow:ellipsis; flex:1;">RSS: <span id="subDetailRss" style="color:var(--text-muted);"></span></div>
+                <button id="btnCopyRss" class="btn btn-text btn-sm" style="padding: 0 4px; font-size:10px; flex-shrink:0;">复制</button>
+              </div>
             </div>
           </div>
 
-          <!-- Rules Settings -->
-          <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: var(--radius-md);">
-            <h4 style="margin-top: 0; margin-bottom: 12px; font-size: 14px; color: var(--bili-blue);">🛠️ 过滤规则设置</h4>
-            <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end;">
-              <div class="form-group" style="flex: 1; min-width: 150px; margin-bottom: 0;">
-                <label style="font-size: 12px;">最小时长 (分钟)</label>
-                <input type="number" id="subDetailMinDuration" class="input-field" min="0" step="1">
-              </div>
-              <div class="form-group" style="flex: 2; min-width: 250px; margin-bottom: 0;">
-                <label style="font-size: 12px;">包含关键字 (逗号分隔，留空不限)</label>
-                <input type="text" id="subDetailKeywords" class="input-field" placeholder="例如: 播客, 聊天">
-              </div>
-              <div>
-                <button id="btnSaveSubRules" class="btn btn-primary btn-sm">💾 保存规则</button>
-              </div>
+          <!-- Rules Settings (Compact) -->
+          <div class="brutalist-block" style="display: flex; flex-wrap: nowrap; gap: 4px; flex-shrink: 0; align-items: center; overflow-x: auto;">
+            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap;">
+              <label for="subDetailMinDuration">时长></label>
+              <input type="number" id="subDetailMinDuration" value="0" min="0" step="1" style="width: 40px; height: 26px; font-size: 12px; padding: 0 4px; text-align: center; border: 2px solid var(--border-color); color: var(--border-color);">
             </div>
+            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap; flex: 1;">
+              <label for="subDetailKeywords">词:</label>
+              <input type="text" id="subDetailKeywords" placeholder="空分" style="width: 100%; min-width: 40px; height: 26px; font-size: 12px; padding: 0 4px; border: 2px solid var(--border-color); color: var(--border-color);">
+            </div>
+            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap;">
+              <label for="subDetailKeepCount">保留:</label>
+              <input type="number" id="subDetailKeepCount" value="0" min="0" step="1" style="width: 40px; height: 26px; font-size: 12px; padding: 0 4px; text-align: center; border: 2px solid var(--border-color); color: var(--border-color);">
+            </div>
+            <button id="btnSaveSubRules" class="btn btn-primary btn-sm" style="padding: 0 10px; height: 26px; font-size: 12px; margin: 0; margin-left: 2px; flex-shrink: 0;">💾 保存</button>
           </div>
 
           <!-- Local Files -->
-          <div style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 250px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h4 style="margin: 0; font-size: 14px; color: var(--bili-blue);">📁 本地音频管理</h4>
-              <div>
-                <button id="btnLocalFilesSelectAll" class="btn btn-secondary btn-sm">全选</button>
-                <button id="btnLocalFilesUnselectAll" class="btn btn-secondary btn-sm">反选</button>
+          <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; overflow: hidden; padding: 8px; border-radius: 6px; border: 2px solid var(--border-color); min-height: 200px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+              <div style="font-size: 13px; color: var(--bili-blue); font-weight: bold;">📁 本地音频 (<span id="localFilesSelectedCount">0</span>)</div>
+              <div style="display: flex; gap: 6px;">
+                <button id="btnLocalFilesSelectAll" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 11px;">全选</button>
+                <button id="btnLocalFilesUnselectAll" class="btn btn-secondary btn-sm" style="padding: 2px 8px; font-size: 11px;">反选</button>
+                <button id="btnDeleteSelectedFiles" class="btn btn-primary btn-sm" style="padding: 2px 8px; font-size: 11px; background: #EF4444; box-shadow: none;">🗑️ 删除</button>
               </div>
             </div>
-            <div style="color: var(--text-muted); font-size: 12px;">勾选不需要的音频以从本地永久删除（删除后不会再次被自动下载）</div>
             
-            <div id="localFilesListContainer" style="overflow-y: auto; flex: 1; min-height: 350px; max-height: 50vh; border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-md); padding: 10px; display: flex; flex-direction: column; gap: 8px;">
-              <div style="text-align: center; color: var(--text-muted); padding: 30px;">正在加载音频列表...</div>
-            </div>
-            
-            <div style="display: flex; justify-content: flex-end; align-items: center; gap: 15px;">
-              <span id="localFilesSelectedCount" style="color: var(--bili-pink); font-size: 14px; font-weight: bold;">已选: 0</span>
-              <button id="btnDeleteSelectedFiles" class="btn btn-primary" style="background: #EF4444; box-shadow: none;">🗑️ 永久删除选中音频</button>
+            <div id="localFilesListContainer" style="overflow-y: auto; flex: 1; border: 2px solid var(--border-color); border-radius: 4px; padding: 4px; display: flex; flex-direction: column; gap: 4px;">
+              <div style="text-align: center; color: var(--text-muted); padding: 20px; font-size: 12px;">正在加载...</div>
             </div>
           </div>
           
           <!-- Danger Zone / Quick Actions -->
-          <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
-            <button id="btnCheckSingleSubDetail" class="btn btn-glass btn-sm">⚡ 立即手动检查更新</button>
-            <button id="btnDeleteSubDetail" class="btn btn-secondary btn-sm" style="color: #EF4444; border-color: rgba(239,68,68,0.4);">🚨 彻底取消订阅并清理全部文件</button>
+          <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <button id="btnCheckSingleSubDetail" class="btn btn-glass btn-sm" style="flex: 1; padding: 6px; font-size: 12px;">⚡ 手动检查</button>
+            <button id="btnDeleteSubDetail" class="btn btn-secondary btn-sm" style="flex: 1; padding: 6px; font-size: 12px; color: #EF4444; border-color: rgba(239,68,68,0.4);">🚨 取消订阅</button>
           </div>
 
         </div>
@@ -210,60 +213,56 @@
 
     <!-- Unified Subscription Modal -->
     <div id="unifiedSubModal" class="modal-backdrop hidden">
-      <div class="modal-content glass-panel" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;">
-        <div class="modal-header" style="flex-shrink: 0;">
-          <h3>⭐ 配置订阅与批量下载</h3>
-          <button id="btnCloseUnifiedSub" class="modal-close">&times;</button>
+      <div class="modal-content glass-panel" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column; padding: 12px;">
+        <div class="modal-header" style="flex-shrink: 0; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
+          <h3 style="font-size: 15px; margin: 0;">⭐ 配置订阅</h3>
+          <button id="btnCloseUnifiedSub" class="modal-close" style="font-size: 20px;">&times;</button>
         </div>
         
-        <div class="modal-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 20px;">
+        <div class="modal-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 8px;">
           
-          <!-- UP Profile -->
-          <div class="up-profile-card" style="margin: 0; flex-shrink: 0; padding: 15px;">
-            <div class="up-info-main">
-              <img id="upAvatar" src="" alt="UP Avatar" class="up-avatar">
-              <div class="up-details">
-                <div class="up-header">
-                  <h2 id="upName" class="up-name"></h2>
-                  <span id="upMid" class="up-mid"></span>
-                </div>
-                <p id="upSign" class="up-sign" style="margin: 5px 0 10px 0;"></p>
-                <div class="up-stats">
-                  <span class="stat-tag"><span class="icon">📺</span> 总历史视频数: <strong id="upTotalVideos">0</strong></span>
-                  <span class="stat-tag" style="background: rgba(139,92,246,0.2); color: #C4B5FD;"><span class="icon">🎵</span> 符合筛选条件: <strong id="filteredCount">0</strong></span>
-                </div>
+          <!-- Compact UP Profile -->
+          <div class="brutalist-block" style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+            <img id="upAvatar" src="" style="width: 36px; height: 36px; border-radius: 0; border: 4px solid var(--border-color); object-fit: cover;">
+            <div style="flex: 1; overflow: hidden;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
+                <h2 id="upName" style="font-size: 13px; margin: 0; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></h2>
+                <span id="upMid" style="font-size: 10px; color: var(--text-muted);"></span>
+                <span id="upSign" style="display:none;"></span>
+              </div>
+              <div style="display: flex; gap: 10px; font-size: 11px; font-weight: 700; color: var(--border-color);">
+                <span>📺 总历史: <strong id="upTotalVideos">0</strong></span>
+                <span style="color: var(--accent-1);">🎵 符合: <strong id="filteredCount">0</strong></span>
               </div>
             </div>
           </div>
 
-          <!-- Configuration & Filters -->
-          <div style="display: flex; gap: 15px; flex-shrink: 0; flex-wrap: wrap;">
-            <div class="filter-item" style="flex: 1; min-width: 200px;">
-              <label for="subDurationMinInput"><span class="icon">⏱️</span> 最小时长 (分钟):</label>
-              <input type="number" id="subDurationMinInput" value="0" min="0" step="1" style="width: 100%;">
+          <!-- Filters single row with Button -->
+          <div class="brutalist-block" style="display: flex; flex-wrap: nowrap; gap: 4px; flex-shrink: 0; align-items: center; overflow-x: auto;">
+            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap;">
+              <label for="subDurationMinInput">时长></label>
+              <input type="number" id="subDurationMinInput" value="0" min="0" step="1" style="width: 40px; height: 26px; font-size: 12px; padding: 0 4px; text-align: center; border: 2px solid var(--border-color); color: var(--border-color);">
             </div>
-            <div class="filter-item filter-search" style="flex: 2; min-width: 250px;">
-              <label for="subKeywordInput"><span class="icon">🔑</span> 包含关键字:</label>
-              <input type="text" id="subKeywordInput" placeholder="多关键字可用空格隔开..." style="width: 100%;">
+            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap; flex: 1;">
+              <label for="subKeywordInput">词:</label>
+              <input type="text" id="subKeywordInput" placeholder="空分" style="width: 100%; min-width: 40px; height: 26px; font-size: 12px; padding: 0 4px; border: 2px solid var(--border-color); color: var(--border-color);">
             </div>
-            <div class="filter-item" style="flex: 1.5; min-width: 250px;">
-              <label for="subHistoryCountInput"><span class="icon">📦</span> 自动转存历史视频数:</label>
-              <input type="number" id="subHistoryCountInput" value="0" min="0" step="1" style="width: 100%;" placeholder="0 表示不下载历史">
+            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap;">
+              <label for="subHistoryCountInput">历史:</label>
+              <input type="number" id="subHistoryCountInput" value="0" min="0" step="1" style="width: 40px; height: 26px; font-size: 12px; padding: 0 4px; text-align: center; border: 2px solid var(--border-color); color: var(--border-color);">
             </div>
+            <button id="btnConfirmSub" class="btn btn-primary btn-sm" style="padding: 0 10px; height: 26px; font-size: 12px; margin: 0; margin-left: 2px; flex-shrink: 0;">确定</button>
           </div>
-          <div style="font-size: 12px; color: var(--text-muted); flex-shrink: 0;">
-            * 提示：订阅后系统会自动监听未来的新视频。修改上方筛选条件，下方列表会实时更新。填入转存数量会自动从匹配列表中挑选最新 N 个音频加入下载队列。
+          
+          <div style="font-size: 10px; color: var(--text-muted); flex-shrink: 0; line-height: 1.1; margin-top: -2px;">
+            * 订阅后自动监听新视频，填转存数会挑最新N个加入下载。
           </div>
 
           <!-- Preview Grid -->
-          <div id="videoGrid" style="overflow-y: auto; flex: 1; padding-right: 5px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+          <div id="videoGrid" style="overflow-y: auto; flex: 1; padding-right: 2px; display: flex; flex-direction: column; gap: 6px;">
             <!-- Videos inject here -->
           </div>
           
-        </div>
-        
-        <div style="flex-shrink: 0; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right;">
-          <button id="btnConfirmSub" class="btn btn-gradient btn-lg" style="width: 200px;">🚀 确定订阅</button>
         </div>
       </div>
     </div>
@@ -274,6 +273,6 @@
     <p>BiliPods &copy; 2026 - 符合 Apple Podcasts 独立格式标准（专辑封面/单集封面 1400-3000px, 300KB-500KB 优化）</p>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
