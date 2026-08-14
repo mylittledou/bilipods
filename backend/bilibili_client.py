@@ -49,6 +49,14 @@ class BilibiliClient:
         except Exception as e:
             print(f"Error saving cookies: {e}")
 
+    def set_cookies_from_string(self, cookie_string: str):
+        self.session.cookies.clear()
+        for item in cookie_string.split(';'):
+            if '=' in item:
+                k, v = item.strip().split('=', 1)
+                self.session.cookies.set(k, v, domain='.bilibili.com')
+        self.save_cookies()
+        
     def init_buvid(self):
         """Fetch buvid3 & buvid4 if not present in cookies"""
         if not self.session.cookies.get('buvid3'):
