@@ -510,6 +510,7 @@ async function openSubDetailModal(s) {
   // Re-bind actions (remove old listeners by cloning or just assigning onclick to prevent duplicates)
   document.getElementById('btnSaveSubRules').onclick = () => saveSubRules(mid);
   document.getElementById('btnCheckSingleSubDetail').onclick = () => checkSingleSub(mid);
+  document.getElementById('btnRegenCoverSubDetail').onclick = () => regenCover(mid);
   document.getElementById('btnDeleteSubDetail').onclick = () => {
     removeSub(mid);
   };
@@ -645,6 +646,22 @@ async function deleteSelectedFiles() {
   } finally {
     btn.disabled = false;
     btn.textContent = "🗑️ 永久删除选中的音频";
+  }
+}
+
+async function regenCover(mid) {
+  const btn = document.getElementById('btnRegenCoverSubDetail');
+  btn.disabled = true;
+  btn.textContent = "更新中...";
+  try {
+    const res = await fetch(`/api/subscriptions/${mid}/cover`, { method: 'POST' });
+    if (!res.ok) throw new Error("服务器处理失败");
+    showToast("专辑封面已成功更新并保存到目录！");
+  } catch (err) {
+    showToast("封面更新失败: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🔄 更新封面";
   }
 }
 
