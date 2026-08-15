@@ -79,6 +79,26 @@ def process_artwork(
     print(f"Processed artwork: {img.size[0]}x{img.size[1]} px, Quality: {quality}, Size: {size_kb:.2f} KB")
     return data
 
+def ensure_album_cover(up_name: str, up_avatar: str, session: requests.Session, base_download_dir: str = "downloads") -> bool:
+    """Download UP's avatar and save as cover.jpg in the album directory if it doesn't exist."""
+    up_dir = os.path.join(base_download_dir, sanitize_filename(up_name))
+    cover_path = os.path.join(up_dir, "cover.jpg")
+    
+    if os.path.exists(cover_path):
+        return True
+    if not up_avatar:
+        return False
+        
+    try:
+        os.makedirs(up_dir, exist_ok=True)
+        img_bytes = process_artwork(up_avatar, session, target_min=1400, target_max=3000)
+        with open(cover_path, 'wb') as f:
+            f.write(img_bytes)
+        return True
+    except Exception as e:
+        print(f"Error generating album cover for {up_name}: {e}")
+        return False
+
 def process_audio_file(
     video_data: dict,
     up_name: str,
@@ -93,8 +113,8 @@ def process_audio_file(
     up_dir = os.path.join(base_download_dir, sanitized_up)
     os.makedirs(up_dir, exist_ok=True)
 
-    # No longer saving a standalone cover.jpg (UP Avatar) in the directory
-
+    # Ensure a standalone cover.jpg (UP Avatar) exists for Audiobookshelf
+    ensure_album_cover(up_name, up_avatar_url, session, base_download_dir)
     bvid = video_data['bvid']
     title = video_data['title']
     pic_url = video_data.get('pic', '')

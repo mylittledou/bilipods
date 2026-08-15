@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from mutagen.mp4 import MP4
 
 from backend.bilibili_client import BilibiliClient
-from backend.audio_processor import process_audio_file, sanitize_filename
+from backend.audio_processor import process_audio_file, sanitize_filename, ensure_album_cover
 from backend.rss_generator import generate_podcast_rss
 from backend.subscription_manager import SubscriptionManager
 
@@ -345,6 +345,33 @@ def update_subscription(mid: int, req: SubscriptionUpdateRequest):
     if not sub:
         raise HTTPException(status_code=404, detail="订阅不存在")
     return {"status": "ok", "subscription": sub}
+
+@app.post("/api/subscriptions/{mid}/cover")
+def regenerate_album_cover(mid: str):
+    sub = subscription_mgr.subscriptions.get(mid)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    
+    # ensure we have an avatar url
+    up_avatar = sub.get('up_avatar')
+    if not up_avatar:
+        try:
+            up_info = bilibili_client.get_up_info(int(mid))
+            up_avatar = up_info.get('face', '')
+            if up_avatar:
+                sub['up_avatar'] = up_avatar
+                subscription_mgr.save()
+        except Exception as e:
+            pass
+
+    if not up_avatar:
+        raise HTTPException(status_code=400, detail="Cannot find UP avatar")
+        
+    success = ensure_album_cover(sub['up_name'], up_avatar, bilibili_client.session, DOWNLOAD_DIR)
+    if success:
+        return {"code": 0, "message": "Cover generated successfully"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to generate cover")
 
 @app.delete("/api/subscriptions/{mid}")
 def delete_subscription(mid: int):
