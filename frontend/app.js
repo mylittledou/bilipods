@@ -27,10 +27,16 @@ function showToast(msg) {
   }, 3000);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   initAuthStatus();
   setupEventListeners();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 // 1. Auth Status & QR Login
 async function initAuthStatus() {
