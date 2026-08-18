@@ -152,9 +152,9 @@ def process_audio_file(
         # 3. Remux / re-encode using ffmpeg
         if progress_cb: progress_cb("正在转码优化音频封装 (FFmpeg)...", 0.75)
         
-        # Create metadata file for single chapter (named as up_name)
+        # Create metadata file for single chapter (named as '正文')
         with open(temp_meta_path, "w", encoding="utf-8") as f:
-            f.write(f";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=9999999999\ntitle={up_name}\n")
+            f.write(f";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=9999999999\ntitle=正文\n")
 
         cmd = [
             ffmpeg_bin, "-y", 
