@@ -127,6 +127,7 @@ def process_audio_file(
     final_filepath = os.path.join(up_dir, filename)
     temp_raw_path = os.path.join(up_dir, f"_temp_{bvid}_raw.m4a")
     temp_out_path = os.path.join(up_dir, f"_temp_{bvid}_out.m4a")
+    temp_meta_path = os.path.join(up_dir, f"_temp_{bvid}_meta.txt")
 
     try:
         # 2. Download audio stream
@@ -150,8 +151,16 @@ def process_audio_file(
 
         # 3. Remux / re-encode using ffmpeg
         if progress_cb: progress_cb("正在转码优化音频封装 (FFmpeg)...", 0.75)
+        
+        # Create metadata file for single chapter (named as up_name)
+        with open(temp_meta_path, "w", encoding="utf-8") as f:
+            f.write(f";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=9999999999\ntitle={up_name}\n")
+
         cmd = [
-            ffmpeg_bin, "-y", "-i", temp_raw_path,
+            ffmpeg_bin, "-y", 
+            "-i", temp_raw_path,
+            "-i", temp_meta_path,
+            "-map_metadata", "0", "-map_chapters", "1",
             "-c:a", "copy",
             "-movflags", "+faststart",
             temp_out_path
@@ -160,7 +169,10 @@ def process_audio_file(
         if res.returncode != 0:
             # Fallback re-encode if copy fails
             cmd_fallback = [
-                ffmpeg_bin, "-y", "-i", temp_raw_path,
+                ffmpeg_bin, "-y", 
+                "-i", temp_raw_path,
+                "-i", temp_meta_path,
+                "-map_metadata", "0", "-map_chapters", "1",
                 "-c:a", "aac", "-b:a", "192k",
                 "-movflags", "+faststart",
                 temp_out_path
@@ -205,4 +217,7 @@ def process_audio_file(
             except Exception: pass
         if os.path.exists(temp_out_path):
             try: os.remove(temp_out_path)
+            except Exception: pass
+        if os.path.exists(temp_meta_path):
+            try: os.remove(temp_meta_path)
             except Exception: pass
