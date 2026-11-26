@@ -6,6 +6,10 @@ on:
       - main
     tags:
       - 'v*'
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+      - 'LICENSE'
   workflow_dispatch:
 
 jobs:

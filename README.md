@@ -6,8 +6,7 @@
 
 ## ✨ 核心特性
 
-- **双平台统一支持**：同时支持 Bilibili（UP 主主页/MID）与 YouTube（视频链接、播放列表、频道 `@Handle` / `UC...` ID / 关键词搜索）。
-- **我的关注一键解析**：支持拉取 B 站「我关注的 UP 主」与 YouTube「我订阅的频道」，点击即可快速配置订阅。
+- **双平台统一支持**：同时支持 Bilibili（UP 主主页 / MID / 我的关注）与 YouTube（视频链接、播放列表、频道 `@Handle` / `UC...` ID / 关键词 / 我的关注）。
 - **高音质零损直出封装**：
   - B 站优先提取无损/高码率音轨并封装为 `.m4a`（FastStart 优化）；
   - YouTube 优先直取原生 DASH AAC 流（itag 140）免重编码封装，大幅降低 CPU 占用。
@@ -22,14 +21,13 @@
 
 ## 🚀 快速部署（Docker Compose，推荐）
 
-镜像支持 `linux/amd64` 与 `linux/arm64`（树莓派 / ARM VPS 开箱即用），内置 `ffmpeg`、`yt-dlp[default]` 与 `deno` 运行时。
+镜像支持 `linux/amd64` 与 `linux/arm64`（Linux / NAS / macOS / Windows / 树莓派开箱即用），内置 `ffmpeg`、`yt-dlp[default]` 与 `deno` 运行时。
 
 ### 1. 创建目录与配置文件
 
 ```bash
 mkdir -p bilipods/data bilipods/downloads
 cd bilipods
-touch cookies.json subscriptions.json
 echo '{}' > cookies.json
 echo '{}' > subscriptions.json
 ```
@@ -44,12 +42,13 @@ services:
     image: ghcr.io/mylittledou/bilipods:latest
     container_name: bilipods
     restart: unless-stopped
-    network_mode: "host" # 也可改用 ports: ["8000:8000"]
+    ports:
+      - "8000:8000"
     volumes:
-      - ./downloads:/app/downloads            # 音频输出目录（可直接映射为 Audiobookshelf 播客库目录）
-      - ./cookies.json:/app/cookies.json      # B 站登录凭证
+      - ./downloads:/app/downloads                 # 音频输出目录（可直接映射为 Audiobookshelf 播客库目录）
+      - ./cookies.json:/app/cookies.json           # B 站登录凭证
       - ./subscriptions.json:/app/subscriptions.json # 订阅配置持久化
-      - ./data:/app/data                      # YouTube Cookie 存储目录（youtube_cookies.txt）
+      - ./data:/app/data                           # YouTube Cookie 存储目录（youtube_cookies.txt）
     environment:
       - PYTHONUNBUFFERED=1
       # 可选：配置 Bark 推送通知（新剧集自动更新完成后推送汇总提醒）
@@ -114,6 +113,17 @@ docker compose up -d
 
 ---
 
+## ❓ 常见问题 (FAQ)
+
+- **未登录直接解析 B 站 UP 主报错 `-352 风控校验失败` 或 `request was banned`？**
+  - 云服务器机房 IP 极易被 B 站 WBI 接口拦截，请先在右上角通过 **扫码** 或 **Cookie** 登录 B 站账号后再解析。
+- **YouTube 提取单集提示 `Sign in to confirm you're not a bot`？**
+  - 云服务器 IP 解析 YouTube 音频流通常需要身份验证，请按上文导入浏览器导出的 Netscape 格式 YouTube Cookie 后重试。
+- **为什么保留数设为 `0` 时点击订阅一集也没下载？**
+  - **保留数 `0`** 表示「永久保留已有文件、不删除旧音频」，而**首次要立即拉取的历史集数**由左侧 **「下载历史」**（或点击 **`全部`** 按钮）控制。
+
+---
+
 ## 🔧 环境变量说明
 
 | 变量名 | 默认值 | 说明 |
@@ -121,3 +131,10 @@ docker compose up -d
 | `BARK_KEY` | 空（不推送） | 可选，填写 Bark 推送 Key 后将在后台定时更新完成时发送汇总通知 |
 | `BARK_SERVER` | `https://api.day.app` | 可选，自建 Bark 服务端地址 |
 | `PYTHONUNBUFFERED` | `1` | 实时输出容器日志 |
+
+---
+
+## ⚠️ 免责声明
+
+- 本项目以 [MIT License](LICENSE) 开源，仅供个人学习与私人离线播客归档使用；
+- 请严格遵守相关平台服务条款及内容创作者版权规定，勿用于任何商业用途或公开二次分发。

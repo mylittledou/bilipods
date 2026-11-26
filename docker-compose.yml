@@ -3,7 +3,9 @@ services:
     image: ghcr.io/${GITHUB_REPOSITORY:-mylittledou/bilipods}:latest
     container_name: bilipods
     restart: unless-stopped
-    network_mode: "host"
+    ports:
+      - "8000:8000"
+    # network_mode: "host" # 如需与宿主机本地代理/服务直连，可取消注释并删除上方 ports
     volumes:
       - ./downloads:/app/downloads
       - ./cookies.json:/app/cookies.json
