@@ -3,7 +3,9 @@ __pycache__/
 *.pyc
 .env
 downloads/
+data/
 scratch/
 cookies.json
+youtube_cookies.txt
 subscriptions.json
 .DS_Store

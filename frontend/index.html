@@ -4,46 +4,67 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="referrer" content="no-referrer">
-  <title>BiliPods - B站视频转播客音频提取工具</title>
+  <title>BiliPods & YTPods - B站/YouTube 视频转播客音频提取工具</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=25">
 </head>
 <body>
 
   <header class="header">
     <div class="logo">
       <span class="logo-icon">🎙️</span>
-      <span class="logo-text">Bili<span class="highlight">Pods</span></span>
+      <span class="logo-text">Bili<span class="highlight">Pods</span> <span style="font-size: 14px; background: #FF0000; color: white; padding: 2px 6px; border: 2px solid var(--border-color); vertical-align: middle; margin-left: 4px;">+ YouTube</span></span>
+    </div>
+
+    <!-- Platform Switcher Tabs -->
+    <div class="platform-tabs">
+      <button class="platform-tab active" id="tabBilibili">
+        <span>📺</span> Bilibili (B站)
+      </button>
+      <button class="platform-tab yt-tab" id="tabYouTube">
+        <span>🎬</span> YouTube
+      </button>
     </div>
 
     <div class="auth-box" id="authBox">
       <button class="btn btn-glass btn-sm" id="btnShowSubs">
         <span class="icon">⭐</span> 我的订阅
       </button>
+      
+      <!-- YouTube Tab Extra Actions -->
+      <button class="btn btn-glass btn-sm hidden" id="btnShowYtChannels">
+        <span class="icon">❤️</span> 我的关注
+      </button>
+      <button class="btn btn-glass btn-sm hidden" id="btnShowYtCookie">
+        <span class="icon">🔑</span> YouTube Cookie
+      </button>
+
+      <!-- Bilibili Tab Auth Actions -->
       <button class="btn btn-glass btn-sm hidden" id="btnShowFollowed">
-        <span class="icon">❤️</span> 关注的 UP 主
+        <span class="icon">❤️</span> 我的关注
       </button>
       <div id="loggedOutView">
         <button class="btn btn-secondary btn-sm" id="btnShowQr">
           <span class="icon">📱</span> 扫码登录 B 站
         </button>
       </div>
-      <div id="loggedInView" class="hidden" style="display: flex; align-items: center; gap: 10px;">
-        <img id="userAvatar" class="user-avatar" src="" alt="头像" style="width: 32px; height: 32px; border-radius: 50%;">
+      <div id="loggedInView" class="hidden" style="display: flex; align-items: center; gap: 8px;">
+        <img id="userAvatar" class="user-avatar" src="" alt="头像" style="width: 30px; height: 30px; border-radius: 50%;">
         <div style="display: flex; flex-direction: column;">
           <span id="userName" class="user-name"></span>
           <span id="vipBadge" class="vip-badge hidden">大会员</span>
         </div>
-        <button id="btnLogout" class="btn btn-secondary btn-sm">退出</button>
+        <button id="btnLogout" class="btn btn-secondary btn-sm" style="padding: 2px 6px;">退出</button>
       </div>
     </div>
   </header>
 
   <main class="container">
-    <!-- Hero Search Section -->
-    <section class="hero-section">
+    
+    <!-- 1. Bilibili Section -->
+    <section id="bilibiliSection" class="hero-section">
       <h1 class="title">B站视频 智能提取 <span class="gradient-text">播客音频</span></h1>
       <p class="subtitle">一键生成符合 Apple Podcasts 标准的高音质音频与 RSS 订阅源，轻松同步至 Audiobookshelf</p>
       
@@ -53,9 +74,53 @@
           <span class="icon">🔍</span> 解析 UP 主视频
         </button>
       </div>
+      <div class="quick-links-bar">
+        <button id="btnQuickFollowedBili" class="quick-chip">
+          <span>❤️</span> 从我的关注挑选 UP 主
+        </button>
+      </div>
     </section>
 
-    </div>
+    <!-- 2. YouTube Section (Initially Hidden) -->
+    <section id="youtubeSection" class="hero-section yt-hero hidden">
+      <h1 class="title">YouTube 视频 / 频道 <span class="gradient-text yt-gradient">播客化提取</span></h1>
+      <p class="subtitle">支持单视频、Shorts、播放列表 (Playlist) 或频道 (@Handle) 智能解析与 Apple Podcasts 规范封装</p>
+      
+      <div class="search-bar-glass">
+        <input type="text" id="ytQueryInput" placeholder="输入 YouTube 视频/播放列表/频道链接或 @handle (如: @TED, @hubermanlab)" autocomplete="off">
+        <button id="btnSearchYt" class="btn btn-youtube">
+          <span class="icon">🔍</span> 解析 YouTube
+        </button>
+      </div>
+      <div class="quick-links-bar">
+        <button id="btnQuickFollowedYt" class="quick-chip yt-chip">
+          <span>❤️</span> 从我的关注挑选 YouTube 频道
+        </button>
+        <button id="btnQuickYtCookie" class="quick-chip">
+          <span>🔑</span> 配置 Cookie
+        </button>
+      </div>
+
+      <!-- Quick single video result preview container -->
+      <div id="ytSingleVideoCard" class="single-video-box hidden">
+        <div class="single-video-cover">
+          <img id="ytSingleCover" src="" alt="封面">
+          <span id="ytSingleDuration" class="duration-badge">00:00</span>
+        </div>
+        <div class="single-video-info">
+          <div id="ytSingleTitle" class="single-video-title"></div>
+          <div class="single-video-meta">
+            <span>👤 频道: <strong id="ytSingleChannel"></strong></span>
+            <span>🕒 发布: <strong id="ytSingleDate"></strong></span>
+          </div>
+          <div style="margin-top: 8px;">
+            <button id="btnExtractSingleYt" class="btn btn-youtube btn-sm" style="width: 100%;">
+              🎙️ 立即提取为播客音频 (Apple Podcasts 标准)
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Download Progress Modal -->
     <div id="progressModal" class="modal-backdrop hidden">
@@ -79,7 +144,30 @@
       </div>
     </div>
 
-    <!-- Login Modal -->
+    <!-- YouTube Cookie Modal -->
+    <div id="ytCookieModal" class="modal-backdrop hidden">
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h3>🔑 配置 YouTube Cookie</h3>
+          <button id="btnCloseYtCookie" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+          <p style="font-size: 12px; color: var(--text-sub); line-height: 1.4;">
+            💡 配置 YouTube Cookie 可 100% 避免海外节点被 YouTube 拦截验证码，并支持会员专享和年龄限制视频的提取。支持直接粘贴 <strong>Netscape 格式</strong> 或浏览器 <strong>Cookie 头部字符串</strong>。
+          </p>
+          <div id="ytCookieStatusText" style="font-size: 12px; font-weight: 700; color: var(--border-color); background: #f5f5f5; padding: 6px 10px; border: 2px solid var(--border-color);">
+            当前状态: 正在读取...
+          </div>
+          <textarea id="ytCookieInput" class="input-field" rows="6" placeholder="粘贴 Netscape 格式 cookies.txt 内容，或直接粘贴 Cookie: VISITOR_INFO1_LIVE=...; SID=...; 字符串" style="width: 100%; border: 2px solid var(--border-color); padding: 8px; font-size: 11px; font-family: monospace; resize: vertical;"></textarea>
+          <div style="display: flex; gap: 10px;">
+            <button id="btnSaveYtCookie" class="btn btn-youtube" style="flex: 2;">💾 保存 Cookie</button>
+            <button id="btnClearYtCookie" class="btn btn-secondary" style="flex: 1; color: #EF4444;">🗑️ 清空</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bilibili Login Modal -->
     <div id="qrModal" class="modal-backdrop hidden">
       <div class="modal-content modal-sm">
         <div class="modal-header">
@@ -102,7 +190,7 @@
           <div style="border-top: 4px solid var(--border-color); padding-top: 20px;">
             <p class="qr-tip" style="margin-bottom: 10px; font-weight: bold;">方式二：手动输入 Cookie</p>
             <div style="display: flex; flex-direction: column; gap: 10px;">
-              <textarea id="cookieInput" class="input-field" rows="3" placeholder="SESSDATA=xxx; bili_jct=yyy; DedeUserID=zzz;" style="resize: none; font-size: 12px;"></textarea>
+              <textarea id="cookieInput" class="input-field" rows="3" placeholder="SESSDATA=xxx; bili_jct=yyy; DedeUserID=zzz;" style="resize: none; font-size: 12px; width: 100%; border: 2px solid var(--border-color); padding: 6px;"></textarea>
               <button id="btnSubmitCookie" class="btn btn-primary" style="width: 100%;">💾 验证并保存</button>
             </div>
           </div>
@@ -114,25 +202,33 @@
     <div id="subModal" class="modal-backdrop hidden">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>⭐ 我的 UP 主自动更新订阅</h3>
+          <h3>⭐ 我的自动更新订阅</h3>
           <button id="btnCloseSubModal" class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
-          <p style="color: var(--text-sub); font-size: 13px; margin-bottom: 16px;">系统每 15 分钟后台自动轮询以下 UP 主新上传的视频，并自动筛选提取高音质音频。</p>
-          <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-            <button id="btnCheckAllSubsNow" class="btn btn-secondary btn-sm">⚡ 立即手动全量检查更新</button>
+          <p style="color: var(--text-sub); font-size: 13px; margin-bottom: 12px;">系统每 15 分钟后台自动轮询以下 UP 主/YouTube 频道的新视频，并按规则自动提取高音质音频。</p>
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 8px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 6px;" id="subFilterPlatformBtns">
+              <button class="btn btn-sm btn-glass active" data-filter="all">🌐 全部</button>
+              <button class="btn btn-sm btn-glass" data-filter="bilibili">📺 B站</button>
+              <button class="btn btn-sm btn-glass" data-filter="youtube">🎬 YouTube</button>
+            </div>
+            <button id="btnCheckAllSubsNow" class="btn btn-secondary btn-sm">⚡ 立即全量检查更新</button>
           </div>
+          
           <div id="subListContainer" class="sub-list-container">
-            <div style="text-align: center; color: var(--text-muted); padding: 30px;">暂无订阅的 UP 主</div>
+            <div style="text-align: center; color: var(--text-muted); padding: 30px;">暂无订阅</div>
           </div>
         </div>
       </div>
     </div>
-    <!-- Followings Modal -->
+
+    <!-- Followings Modal (B站) -->
     <div id="followingsModal" class="modal-backdrop hidden">
       <div class="modal-content">
         <div class="modal-header">
-          <h3>❤️ 我关注的 UP 主</h3>
+          <h3 id="followingsModalTitle">❤️ 我关注的 UP 主</h3>
           <button id="btnCloseFollowings" class="modal-close">&times;</button>
         </div>
         <div class="modal-body">
@@ -142,7 +238,6 @@
         </div>
       </div>
     </div>
-
 
     <!-- Sub Detail & Local Files Manager Modal -->
     <div id="subDetailModal" class="modal-backdrop hidden">
@@ -168,21 +263,21 @@
             </div>
           </div>
 
-          <!-- Rules Settings (Compact) -->
-          <div class="brutalist-block" style="display: flex; flex-wrap: nowrap; gap: 4px; flex-shrink: 0; align-items: center; overflow-x: auto;">
-            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap;">
-              <label for="subDetailMinDuration">时长></label>
-              <input type="number" id="subDetailMinDuration" value="0" min="0" step="1" style="width: 40px; height: 26px; font-size: 12px; padding: 0 4px; text-align: center; border: 2px solid var(--border-color); color: var(--border-color);">
+          <!-- Rules Settings (Well-balanced Grid) -->
+          <div class="sub-filter-row">
+            <div class="sub-filter-item">
+              <label for="subDetailMinDuration">时长(分):</label>
+              <input type="number" id="subDetailMinDuration" value="0" min="0" step="1" placeholder="分">
             </div>
-            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap; flex: 1;">
-              <label for="subDetailKeywords">词:</label>
-              <input type="text" id="subDetailKeywords" placeholder="空分" style="width: 100%; min-width: 40px; height: 26px; font-size: 12px; padding: 0 4px; border: 2px solid var(--border-color); color: var(--border-color);">
+            <div class="sub-filter-item">
+              <label for="subDetailKeywords">关键词:</label>
+              <input type="text" id="subDetailKeywords" placeholder="空格分隔 (留空不过滤)">
             </div>
-            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap;">
-              <label for="subDetailKeepCount">保留:</label>
-              <input type="number" id="subDetailKeepCount" value="0" min="0" step="1" style="width: 40px; height: 26px; font-size: 12px; padding: 0 4px; text-align: center; border: 2px solid var(--border-color); color: var(--border-color);">
+            <div class="sub-filter-item">
+              <label for="subDetailKeepCount">保留数:</label>
+              <input type="number" id="subDetailKeepCount" value="0" min="0" step="1" placeholder="数量">
             </div>
-            <button id="btnSaveSubRules" class="btn btn-primary btn-sm" style="padding: 0 10px; height: 26px; font-size: 12px; margin: 0; margin-left: 2px; flex-shrink: 0;">💾 保存</button>
+            <button id="btnSaveSubRules" class="btn btn-primary sub-filter-btn">💾 保存</button>
           </div>
 
           <!-- Local Files -->
@@ -201,7 +296,7 @@
             </div>
           </div>
           
-          <!-- Danger Zone / Quick Actions -->
+          <!-- Quick Actions -->
           <div style="flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
             <button id="btnCheckSingleSubDetail" class="btn btn-glass btn-sm" style="flex: 1; padding: 6px; font-size: 12px;">⚡ 手动检查</button>
             <button id="btnRegenCoverSubDetail" class="btn btn-glass btn-sm" style="flex: 1; padding: 6px; font-size: 12px; color: var(--accent-1); border-color: var(--accent-1);">🔄 更新封面</button>
@@ -212,17 +307,17 @@
       </div>
     </div>
 
-    <!-- Unified Subscription Modal -->
+    <!-- Unified Subscription Modal (Shared for Bilibili UP and YouTube Channel) -->
     <div id="unifiedSubModal" class="modal-backdrop hidden">
       <div class="modal-content glass-panel" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column; padding: 12px;">
         <div class="modal-header" style="flex-shrink: 0; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
-          <h3 style="font-size: 15px; margin: 0;">⭐ 配置订阅</h3>
+          <h3 id="unifiedSubModalTitle" style="font-size: 15px; margin: 0;">⭐ 配置订阅</h3>
           <button id="btnCloseUnifiedSub" class="modal-close" style="font-size: 20px;">&times;</button>
         </div>
         
         <div class="modal-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 8px;">
           
-          <!-- Compact UP Profile -->
+          <!-- Profile Card -->
           <div class="brutalist-block" style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
             <img id="upAvatar" src="" style="width: 36px; height: 36px; border-radius: 0; border: 4px solid var(--border-color); object-fit: cover;">
             <div style="flex: 1; overflow: hidden;">
@@ -232,31 +327,38 @@
                 <span id="upSign" style="display:none;"></span>
               </div>
               <div style="display: flex; gap: 10px; font-size: 11px; font-weight: 700; color: var(--border-color);">
-                <span>📺 总历史: <strong id="upTotalVideos">0</strong></span>
+                <span>📺 视频数: <strong id="upTotalVideos">0</strong></span>
                 <span style="color: var(--accent-1);">🎵 符合: <strong id="filteredCount">0</strong></span>
               </div>
             </div>
           </div>
 
-          <!-- Filters single row with Button -->
-          <div class="brutalist-block" style="display: flex; flex-wrap: nowrap; gap: 4px; flex-shrink: 0; align-items: center; overflow-x: auto;">
-            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap;">
-              <label for="subDurationMinInput">时长></label>
-              <input type="number" id="subDurationMinInput" value="0" min="0" step="1" style="width: 40px; height: 26px; font-size: 12px; padding: 0 4px; text-align: center; border: 2px solid var(--border-color); color: var(--border-color);">
+          <!-- Filters Row with Button -->
+          <div class="sub-filter-row">
+            <div class="sub-filter-item">
+              <label for="subDurationMinInput">时长(分):</label>
+              <input type="number" id="subDurationMinInput" value="0" min="0" step="1" placeholder="分">
             </div>
-            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap; flex: 1;">
-              <label for="subKeywordInput">词:</label>
-              <input type="text" id="subKeywordInput" placeholder="空分" style="width: 100%; min-width: 40px; height: 26px; font-size: 12px; padding: 0 4px; border: 2px solid var(--border-color); color: var(--border-color);">
+            <div class="sub-filter-item">
+              <label for="subKeywordInput">关键词:</label>
+              <input type="text" id="subKeywordInput" placeholder="空格分隔 (留空不过滤)">
             </div>
-            <div style="display: flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--border-color); white-space: nowrap;">
-              <label for="subHistoryCountInput">历史:</label>
-              <input type="number" id="subHistoryCountInput" value="0" min="0" step="1" style="width: 40px; height: 26px; font-size: 12px; padding: 0 4px; text-align: center; border: 2px solid var(--border-color); color: var(--border-color);">
+            <div class="sub-filter-item">
+              <label for="subHistoryCountInput">下载历史:</label>
+              <div style="display: flex; gap: 4px; align-items: center; width: 100%;">
+                <input type="number" id="subHistoryCountInput" value="0" min="0" step="1" placeholder="集数" style="flex: 1; min-width: 45px;">
+                <button type="button" id="btnSelectAllHistory" class="btn btn-secondary btn-sm" style="padding: 4px 6px; font-size: 11px; white-space: nowrap;">全部</button>
+              </div>
             </div>
-            <button id="btnConfirmSub" class="btn btn-primary btn-sm" style="padding: 0 10px; height: 26px; font-size: 12px; margin: 0; margin-left: 2px; flex-shrink: 0;">确定</button>
+            <div class="sub-filter-item">
+              <label for="subKeepCountInput">保留数:</label>
+              <input type="number" id="subKeepCountInput" value="0" min="0" step="1" placeholder="0=全部保留" title="0代表全部永久保留，更新时不清理任何历史音频">
+            </div>
+            <button id="btnConfirmSub" class="btn btn-primary sub-filter-btn">确定订阅 / 下载</button>
           </div>
           
-          <div style="font-size: 10px; color: var(--text-muted); flex-shrink: 0; line-height: 1.1; margin-top: -2px;">
-            * 订阅后自动监听新视频，填转存数会挑最新N个加入下载。
+          <div style="font-size: 11px; color: var(--text-muted); flex-shrink: 0; line-height: 1.3; margin-top: 2px;">
+            💡 <strong>全量下载并永久保留教程</strong>：点击「全部」填入全部符合集数，保留数保持为 <code>0</code>（0 代表永久保留全部，更新时不删除旧文件），点击「确定订阅 / 下载」即可！
           </div>
 
           <!-- Preview Grid -->
@@ -271,9 +373,9 @@
   </main>
 
   <footer class="footer">
-    <p>BiliPods &copy; 2026 - 符合 Apple Podcasts 独立格式标准（专辑封面/单集封面 1400-3000px, 300KB-500KB 优化）</p>
+    <p>BiliPods & YTPods &copy; 2026 - 符合 Apple Podcasts 独立格式标准（专辑/单集封面 1400-3000px, 300KB-500KB 优化）</p>
   </footer>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=25"></script>
 </body>
 </html>

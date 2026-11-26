@@ -10,5 +10,9 @@ services:
     volumes:
       - ./downloads:/app/downloads
       - ./cookies.json:/app/cookies.json
+      - ./subscriptions.json:/app/subscriptions.json
+      - ./data:/app/data
     environment:
       - PYTHONUNBUFFERED=1
+      # - BARK_KEY=your_bark_key_here
+      # - BARK_SERVER=https://api.day.app

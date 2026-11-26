@@ -328,29 +328,52 @@ class BilibiliClient:
         }
 
     def get_play_info(self, bvid: str, cid: Optional[int] = None) -> dict:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': f'https://www.bilibili.com/video/{bvid}'
+        }
         if not cid:
-            view_resp = self.session.get(f'https://api.bilibili.com/x/web-interface/view?bvid={bvid}', timeout=5).json()
-            if view_resp.get('code') != 0:
-                raise Exception(view_resp.get('message', '获取视频详情失败'))
-            cid = view_resp['data']['cid']
-            title = view_resp['data']['title']
-            pic = view_resp['data']['pic']
-            pubdate = view_resp['data']['pubdate']
-            desc = view_resp['data']['desc']
+            view_data = None
+            for attempt in range(3):
+                try:
+                    r = self.session.get(f'https://api.bilibili.com/x/web-interface/view?bvid={bvid}', headers=headers, timeout=8)
+                    resp = r.json()
+                    if resp.get('code') == 0:
+                        view_data = resp['data']
+                        break
+                except Exception as e:
+                    time.sleep(1)
+            
+            if not view_data:
+                raise Exception(f"获取视频 {bvid} 详情失败")
+                
+            cid = view_data['cid']
+            title = view_data['title']
+            pic = view_data['pic']
+            pubdate = view_data['pubdate']
+            desc = view_data['desc']
         else:
             title, pic, pubdate, desc = "", "", 0, ""
 
-        play_params = self.enc_wbi({'bvid': bvid, 'cid': cid, 'fnval': 4048})
-        play_url = f'https://api.bilibili.com/x/player/wbi/playurl?{urllib.parse.urlencode(play_params)}'
-        play_resp = self.session.get(play_url, headers={'Referer': f'https://www.bilibili.com/video/{bvid}'}, timeout=8).json()
+        play_resp = None
+        for attempt in range(3):
+            try:
+                play_params = self.enc_wbi({'bvid': bvid, 'cid': cid, 'fnval': 4048})
+                play_url = f'https://api.bilibili.com/x/player/wbi/playurl?{urllib.parse.urlencode(play_params)}'
+                r = self.session.get(play_url, headers=headers, timeout=8)
+                play_resp = r.json()
+                if play_resp.get('code') == 0:
+                    break
+            except Exception:
+                time.sleep(1)
         
         # Fallback to standard playurl if WBI returns -412 or error
-        if play_resp.get('code') != 0:
+        if not play_resp or play_resp.get('code') != 0:
             std_url = f'https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&fnval=16'
-            play_resp = self.session.get(std_url, headers={'Referer': f'https://www.bilibili.com/video/{bvid}'}, timeout=8).json()
+            play_resp = self.session.get(std_url, headers=headers, timeout=8).json()
 
-        if play_resp.get('code') != 0:
-            raise Exception(play_resp.get('message', '获取播放地址失败'))
+        if not play_resp or play_resp.get('code') != 0:
+            raise Exception(play_resp.get('message', '获取播放地址失败') if play_resp else "获取播放地址超时")
             
         dash_data = play_resp.get('data', {}).get('dash', {})
         audio_streams = []
