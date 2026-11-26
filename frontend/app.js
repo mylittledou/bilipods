@@ -317,6 +317,9 @@ async function showQrModal() {
   try {
     const res = await fetch('/api/auth/qrcode');
     const data = await res.json();
+    if (!res.ok || !data.qr_img_b64) {
+      throw new Error(data.detail || "二维码接口返回异常");
+    }
     currentQrKey = data.qrcode_key;
     document.getElementById('qrCodeImg').src = data.qr_img_b64;
     document.getElementById('qrStatusText').textContent = "请使用 B 站 App 扫码登录";

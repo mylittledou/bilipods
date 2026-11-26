@@ -1,9 +1,6 @@
-version: '3.8'
-
 services:
   bilipods:
-    build: .
-    image: ghcr.io/${GITHUB_REPOSITORY:-user/bilipods}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:-mylittledou/bilipods}:latest
     container_name: bilipods
     restart: unless-stopped
     network_mode: "host"

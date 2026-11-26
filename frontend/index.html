@@ -177,9 +177,9 @@
         <div class="modal-body qr-modal-body" style="display: flex; flex-direction: column; gap: 20px;">
           <div>
             <p class="qr-tip" style="margin-bottom: 10px; font-weight: bold;">方式一：APP 扫码</p>
-            <div class="qr-code-wrapper" style="margin: 0 auto; border: 4px solid var(--border-color); width: fit-content; padding: 10px;">
+            <div class="qr-code-wrapper" style="position: relative; margin: 0 auto; border: 4px solid var(--border-color); width: fit-content; padding: 10px; background: #fff;">
               <img id="qrCodeImg" src="" alt="登录二维码" style="display: block; width: 150px; height: 150px;">
-              <div id="qrOverlay" class="qr-overlay hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255,255,255,0.9);">
+              <div id="qrOverlay" class="qr-overlay hidden" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255,255,255,0.92);">
                 <span id="qrOverlayMsg" style="font-weight: 900; margin-bottom: 10px;">二维码状态</span>
                 <button id="btnRefreshQr" class="btn btn-primary btn-sm">刷新</button>
               </div>
@@ -188,7 +188,8 @@
           </div>
           
           <div style="border-top: 4px solid var(--border-color); padding-top: 20px;">
-            <p class="qr-tip" style="margin-bottom: 10px; font-weight: bold;">方式二：手动输入 Cookie</p>
+            <p class="qr-tip" style="margin-bottom: 6px; font-weight: bold;">方式二：手动输入 Cookie（海外服务器推荐）</p>
+            <p style="font-size: 11px; color: var(--text-sub); margin-bottom: 8px; line-height: 1.4;">若 App 扫码提示异地风险拦截，可在浏览器登录 B 站后按 F12 → Application → Cookies，复制 <code>SESSDATA</code>、<code>bili_jct</code>、<code>DedeUserID</code> 填入下方。</p>
             <div style="display: flex; flex-direction: column; gap: 10px;">
               <textarea id="cookieInput" class="input-field" rows="3" placeholder="SESSDATA=xxx; bili_jct=yyy; DedeUserID=zzz;" style="resize: none; font-size: 12px; width: 100%; border: 2px solid var(--border-color); padding: 6px;"></textarea>
               <button id="btnSubmitCookie" class="btn btn-primary" style="width: 100%;">💾 验证并保存</button>
@@ -376,6 +377,6 @@
     <p>BiliPods & YTPods &copy; 2026 - 符合 Apple Podcasts 独立格式标准（专辑/单集封面 1400-3000px, 300KB-500KB 优化）</p>
   </footer>
 
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=26"></script>
 </body>
 </html>

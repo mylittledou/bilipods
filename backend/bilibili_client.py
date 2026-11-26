@@ -55,6 +55,7 @@ class BilibiliClient:
             if '=' in item:
                 k, v = item.strip().split('=', 1)
                 self.session.cookies.set(k, v, domain='.bilibili.com')
+        self.init_buvid()
         self.save_cookies()
         
     def init_buvid(self):
@@ -104,7 +105,12 @@ class BilibiliClient:
         return params
 
     def get_qr_code(self) -> dict:
-        resp = self.session.get('https://passport.bilibili.com/x/passport-login/web/qrcode/generate', timeout=5).json()
+        self.init_buvid()
+        resp = self.session.get(
+            'https://passport.bilibili.com/x/passport-login/web/qrcode/generate',
+            headers={'Referer': 'https://passport.bilibili.com/'},
+            timeout=8
+        ).json()
         if resp.get('code') == 0:
             qr_url = resp['data']['url']
             qrcode_key = resp['data']['qrcode_key']
@@ -128,11 +134,24 @@ class BilibiliClient:
 
     def poll_qr_code(self, qrcode_key: str) -> dict:
         url = f'https://passport.bilibili.com/x/passport-login/web/qrcode/poll?qrcode_key={qrcode_key}'
-        resp = self.session.get(url, timeout=5).json()
-        code = resp.get('data', {}).get('code')
-        message = resp.get('data', {}).get('message')
+        resp = self.session.get(
+            url,
+            headers={'Referer': 'https://passport.bilibili.com/'},
+            timeout=8
+        ).json()
+        data = resp.get('data', {})
+        code = data.get('code')
+        message = data.get('message')
         
         if code == 0:
+            # Fallback: ensure key auth cookies are extracted if returned in redirect url query
+            cross_url = data.get('url', '')
+            if cross_url and '?' in cross_url:
+                qs = urllib.parse.parse_qs(urllib.parse.urlparse(cross_url).query)
+                for ck in ['SESSDATA', 'bili_jct', 'DedeUserID', 'DedeUserID__ckMd5']:
+                    if ck in qs and qs[ck] and not self.session.cookies.get(ck):
+                        self.session.cookies.set(ck, qs[ck][0], domain='.bilibili.com')
+            self.init_buvid()
             self.save_cookies()
             user_info = self.get_login_user_info()
             return {"status": "success", "code": 0, "message": "登录成功", "user": user_info}
