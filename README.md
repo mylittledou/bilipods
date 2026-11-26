@@ -134,6 +134,13 @@ docker compose up -d
 
 ---
 
+## 🤝 社区与致谢
+
+- 感谢 **[LINUX DO](https://linux.do)** 社区与各位佬友的交流与灵感分享（欢迎前往 [LINUX DO](https://linux.do) 探讨折腾播客与自托管工具）。
+- 本项目使用了 [yt-dlp](https://github.com/yt-dlp/yt-dlp)、[FastAPI](https://fastapi.tiangolo.com/)、[Mutagen](https://mutagen.readthedocs.io/)、[FFmpeg](https://ffmpeg.org/) 等优秀开源组件。
+
+---
+
 ## ⚠️ 免责声明
 
 - 本项目以 [MIT License](LICENSE) 开源，仅供个人学习与私人离线播客归档使用；
