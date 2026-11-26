@@ -390,6 +390,24 @@ async function submitCookieLogin() {
   }
 }
 
+async function readApiResponse(res, fallbackMsg = "请求失败") {
+  const rawText = await res.text();
+  let data = null;
+  try {
+    data = rawText ? JSON.parse(rawText) : {};
+  } catch (_) {
+    data = null;
+  }
+  if (!res.ok) {
+    const detail = (data && (data.detail || data.message)) || rawText.slice(0, 120) || `${fallbackMsg} (HTTP ${res.status})`;
+    throw new Error(detail);
+  }
+  if (data === null) {
+    throw new Error(`服务返回异常响应 (HTTP ${res.status}): ${rawText.slice(0, 120)}`);
+  }
+  return data;
+}
+
 // ----------------- Bilibili UP Search -----------------
 async function handleUpSearch() {
   const query = document.getElementById('upQueryInput').value.trim();
@@ -403,11 +421,7 @@ async function handleUpSearch() {
 
   try {
     const res = await fetch(`/api/up/search?query=${encodeURIComponent(query)}`);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "解析失败");
-    }
-    const data = await res.json();
+    const data = await readApiResponse(res, "解析失败");
 
     currentMid = data.up_info.mid;
     currentRawVideos = data.videos;
@@ -459,11 +473,7 @@ async function handleYtSearch() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: query })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "解析 YouTube 失败");
-    }
-    const data = await res.json();
+    const data = await readApiResponse(res, "解析 YouTube 失败");
 
     if (data.result_type === 'video') {
       // Single video result
@@ -631,7 +641,10 @@ function renderVideoGrid() {
     return;
   }
 
-  filteredVideos.forEach(v => {
+  const MAX_PREVIEW = 300;
+  const previewList = filteredVideos.slice(0, MAX_PREVIEW);
+
+  previewList.forEach(v => {
     const card = document.createElement('div');
     const isPaid = v.is_paid || v.disabled;
     card.className = `video-card ${isPaid ? 'disabled' : ''}`;
@@ -659,6 +672,13 @@ function renderVideoGrid() {
     `;
     grid.appendChild(card);
   });
+
+  if (filteredVideos.length > MAX_PREVIEW) {
+    const tip = document.createElement('div');
+    tip.style.cssText = 'text-align:center; padding:10px; font-size:12px; color:var(--text-muted); font-weight:bold;';
+    tip.textContent = `列表仅预览前 ${MAX_PREVIEW} 集（共 ${filteredVideos.length} 集），筛选与「全部」历史下载均对全部集数生效`;
+    grid.appendChild(tip);
+  }
 }
 
 // ----------------- Confirm Add Subscription (Unified) -----------------

@@ -321,24 +321,50 @@ class BilibiliClient:
         }
 
     def get_all_up_videos(self, mid: int) -> dict:
-        """Fetch ALL videos of an UP host automatically paginating"""
+        """Fetch ALL videos of an UP host automatically paginating (with bounded concurrency)."""
+        import math
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        # Pre-warm buvid & WBI keys once before concurrent page requests
+        self.init_buvid()
+        self.get_wbi_keys()
+
+        first_res = self.get_up_videos(mid, page=1, page_size=50)
+        total = first_res.get("total", 0)
+        page1_videos = first_res.get("videos", [])
+        if total <= len(page1_videos) or len(page1_videos) == 0:
+            return {
+                "videos": page1_videos,
+                "total": total,
+                "page": 1,
+                "page_size": len(page1_videos) if page1_videos else 50
+            }
+
+        total_pages = math.ceil(total / 50)
+        page_results = {1: page1_videos}
+
+        def fetch_page(p: int):
+            for attempt in range(3):
+                try:
+                    res = self.get_up_videos(mid, page=p, page_size=50)
+                    return p, res.get("videos", [])
+                except Exception as e:
+                    if attempt < 2:
+                        time.sleep(0.3 * (attempt + 1))
+                    else:
+                        print(f"Error fetching videos page {p}: {e}")
+                        return p, []
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(fetch_page, p) for p in range(2, total_pages + 1)]
+            for fut in as_completed(futures):
+                p, vids = fut.result()
+                page_results[p] = vids
+
         all_videos = []
-        page = 1
-        total = 0
-        import time
-        while True:
-            try:
-                res = self.get_up_videos(mid, page=page, page_size=50)
-                all_videos.extend(res["videos"])
-                total = res["total"]
-                if len(all_videos) >= total or len(res["videos"]) == 0:
-                    break
-                page += 1
-                time.sleep(0.5)
-            except Exception as e:
-                print(f"Error fetching videos page {page}: {e}")
-                break
-                
+        for p in range(1, total_pages + 1):
+            all_videos.extend(page_results.get(p, []))
+
         return {
             "videos": all_videos,
             "total": total,
